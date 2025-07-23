@@ -1,31 +1,48 @@
 <!DOCTYPE html>
 <html lang="es">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>StefiApp - Transferencia</title>
-  <link rel="stylesheet" href="global.css" />
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>StefiApp - Transferir</title>
+  <link rel="stylesheet" href="global.css">
 </head>
 <body>
   <div class="transfer-container">
-    <h1 class="title">Transferencia de Monedas</h1>
+    <h1>Transferir dinero</h1>
+    <label for="amount">Monto:</label>
+    <input type="number" id="amount" min="1">
 
-    <input type="text" id="destinatario" placeholder="Nombre del destinatario" />
-    <input type="number" id="cantidad" placeholder="Cantidad de monedas" min="1" />
-    
-    <button id="btn-transferir">Transferir</button>
-    <button id="btn-qr">Generar QR</button>
+    <button onclick="transfer()">Transferir directamente</button>
+    <button onclick="generateQR()">Crear QR para transferencia</button>
 
-    <p id="estado" class="status-msg"></p>
-    <img id="qr-img" alt="Código QR generado" style="display:none; margin-top: 20px; width: 200px;" />
-
-    <p id="saldo-actual">Cargando saldo...</p>
+    <div id="qr-code"></div>
   </div>
 
-  <!-- Librería QR -->
-  <script src="https://cdn.jsdelivr.net/npm/qrcode/build/qrcode.min.js"></script>
+  <script type="module">
+    import { app, db, getAlias, updateMoney } from './firebase.js';
+    import { ref, get, set } from "https://www.gstatic.com/firebasejs/9.6.10/firebase-database.js";
 
-  <script type="module" src="scripts/firebase.js"></script>
-  <script type="module" src="scripts/transfer.js"></script>
+    const amountInput = document.getElementById("amount");
+    const qrDiv = document.getElementById("qr-code");
+
+    async function transfer() {
+      const alias = await getAlias();
+      const amount = parseInt(amountInput.value);
+      const receiver = prompt("Alias del destinatario:");
+      if (!alias || !receiver || !amount) return alert("Faltan datos.");
+      await updateMoney(alias, -amount);
+      await updateMoney(receiver, amount);
+      alert("Transferencia realizada.");
+    }
+
+    async function generateQR() {
+      const alias = await getAlias();
+      const amount = parseInt(amountInput.value);
+      if (!alias || !amount) return alert("Faltan datos.");
+      const payload = JSON.stringify({ from: alias, amount });
+      const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?data=${encodeURIComponent(payload)}&size=150x150`;
+      qrDiv.innerHTML = `<img src="${qrUrl}" alt="QR Code">`;
+    }
+  </script>
 </body>
 </html>
