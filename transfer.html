@@ -2,108 +2,59 @@
 <html lang="es">
 <head>
   <meta charset="UTF-8">
-  <title>Transferencias</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Transferir StefiCoins</title>
   <link rel="stylesheet" href="global.css">
-  <style>
-    .container {
-      padding: 20px;
-      max-width: 400px;
-      margin: auto;
-    }
-    button {
-      margin: 10px;
-      width: 100%;
-    }
-    .hidden {
-      display: none;
-    }
-    .qr-display {
-      text-align: center;
-      margin-top: 20px;
-    }
-    .qr-display img {
-      width: 250px;
-      height: 250px;
-    }
-  </style>
+  <script type="module" src="firebase.js"></script>
 </head>
 <body>
   <div class="container">
-    <h2>¿Qué desea hacer?</h2>
-    <div id="choice">
-      <button onclick="showQR()">Crear QR</button>
-      <button onclick="showTransfer()">Transferir por alias</button>
-    </div>
+    <h2>Transferir StefiCoins</h2>
 
-    <div id="qrForm" class="hidden">
-      <input id="qrAmount" type="number" placeholder="Monto a transferir">
-      <button onclick="generateQR()">Generar QR</button>
-      <div id="qrResult" class="qr-display"></div>
-    </div>
+    <input type="text" id="aliasOrigen" placeholder="Tu alias">
+    <input type="text" id="aliasDestino" placeholder="Alias de destino">
+    <input type="number" id="monto" placeholder="Monto a transferir">
 
-    <div id="transferForm" class="hidden">
-      <input id="aliasInput" type="text" placeholder="Alias del destinatario">
-      <input id="amountInput" type="number" placeholder="Monto a transferir">
-      <button onclick="sendMoney()">Transferir</button>
-    </div>
+    <button id="btnTransferir">Transferir</button>
+
+    <p id="resultado"></p>
   </div>
 
   <script type="module">
-    import { initializeApp } from "https://www.gstatic.com/firebasejs/9.6.10/firebase-app.js";
-    import { getDatabase, ref, get, set, update, child } from "https://www.gstatic.com/firebasejs/9.6.10/firebase-database.js";
-    import { firebaseConfig } from "./firebase.js";
-    import QRCode from "https://cdn.jsdelivr.net/npm/qrcode@1.5.1/build/qrcode.min.js";
+    import { getUserData, updateUserData } from './firebase.js';
 
-    const app = initializeApp(firebaseConfig);
-    const db = getDatabase(app);
-    const alias = localStorage.getItem('alias');
+    document.getElementById('btnTransferir').addEventListener('click', async () => {
+      const origen = document.getElementById('aliasOrigen').value.trim();
+      const destino = document.getElementById('aliasDestino').value.trim();
+      const monto = parseInt(document.getElementById('monto').value);
+      const resultado = document.getElementById('resultado');
 
-    const showQR = () => {
-      document.getElementById("choice").classList.add("hidden");
-      document.getElementById("qrForm").classList.remove("hidden");
-    };
-
-    const showTransfer = () => {
-      document.getElementById("choice").classList.add("hidden");
-      document.getElementById("transferForm").classList.remove("hidden");
-    };
-
-    async function sendMoney() {
-      const toAlias = document.getElementById("aliasInput").value.trim();
-      const amount = parseInt(document.getElementById("amountInput").value);
-      if (!toAlias || isNaN(amount)) return alert("Completa los campos");
-
-      const snapshot = await get(ref(db, 'usuarios'));
-      const users = snapshot.val();
-
-      if (!users || !users[alias] || !users[toAlias]) {
-        return alert("Alias no válido");
+      if (!origen || !destino || isNaN(monto) || monto <= 0) {
+        resultado.textContent = "Completa todos los campos correctamente.";
+        return;
       }
 
-      if (users[alias].dinero < amount) {
-        return alert("Saldo insuficiente");
+      const datosOrigen = await getUserData(origen);
+      const datosDestino = await getUserData(destino);
+
+      if (!datosOrigen || !datosDestino) {
+        resultado.textContent = "Alias no encontrado.";
+        return;
       }
 
-      const updates = {};
-      updates[`usuarios/${alias}/dinero`] = users[alias].dinero - amount;
-      updates[`usuarios/${toAlias}/dinero`] = users[toAlias].dinero + amount;
+      if (datosOrigen.dinero < monto) {
+        resultado.textContent = "No tienes suficientes StefiCoins.";
+        return;
+      }
 
-      await update(ref(db), updates);
-      alert("Transferencia realizada");
-      window.location.reload();
-    }
+      datosOrigen.dinero -= monto;
+      datosDestino.dinero += monto;
 
-    async function generateQR() {
-      const amount = parseInt(document.getElementById("qrAmount").value);
-      if (isNaN(amount)) return alert("Ingrese un monto válido");
+      await updateUserData(origen, datosOrigen);
+      await updateUserData(destino, datosDestino);
 
-      const data = JSON.stringify({ from: alias, amount });
-      const canvas = document.createElement("canvas");
-      await QRCode.toCanvas(canvas, data);
-      document.getElementById("qrResult").innerHTML = "";
-      document.getElementById("qrResult").appendChild(canvas);
-    }
+      resultado.textContent = `¡Transferencia exitosa de ${monto} StefiCoins a ${destino}!`;
+    });
   </script>
 </body>
 </html>
