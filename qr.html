@@ -1,68 +1,61 @@
 <!DOCTYPE html>
 <html lang="es">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <meta charset="UTF-8">
   <title>Escanear QR - StefiApp</title>
-  <link rel="stylesheet" href="global.css" />
-  <script src="https://unpkg.com/html5-qrcode"></script>
+  <link rel="stylesheet" href="global.css">
 </head>
 <body>
   <div class="qr-container">
     <h1>Escanear QR</h1>
-    <div id="reader" style="width: 100%; max-width: 400px; margin: auto;"></div>
-
-    <div class="manual-input">
-      <p>O ingresalo manualmente:</p>
-      <input type="text" id="manualCode" placeholder="Código QR" />
-      <button onclick="procesarCodigo(document.getElementById('manualCode').value)">Enviar</button>
-    </div>
-
-    <div id="resultado"></div>
+    <video id="video" autoplay></video>
+    <canvas id="canvas" hidden></canvas>
+    <p id="output">Esperando escaneo...</p>
+    <button id="toggleCam">Cambiar cámara</button>
   </div>
 
-  <script>
-    const procesarCodigo = (codigo) => {
-      document.getElementById("resultado").innerText = `Código recibido: ${codigo}`;
+  <script type="module">
+    import QrScanner from "https://cdn.jsdelivr.net/npm/qr-scanner@1.4.2/qr-scanner.min.js";
 
-      // Redirigir o hacer algo con el código
-      if (codigo.startsWith("stefi.app/transfer/?")) {
-        const params = new URLSearchParams(codigo.split("?")[1]);
-        const alias = params.get("alias");
-        const puntos = parseInt(params.get("puntos"));
+    const video = document.getElementById("video");
+    const output = document.getElementById("output");
+    const toggleCam = document.getElementById("toggleCam");
 
-        if (alias && !isNaN(puntos)) {
-          window.location.href = `transfer.html?alias=${alias}&puntos=${puntos}`;
-        } else {
-          alert("QR no válido");
-        }
+    let scanner;
+    let useBackCamera = true;
+
+    async function startScanner() {
+      if (scanner) {
+        scanner.destroy();
+        video.srcObject?.getTracks().forEach(t => t.stop());
       }
-    };
 
-    const html5QrCode = new Html5Qrcode("reader");
-    Html5Qrcode.getCameras().then(devices => {
-      if (devices && devices.length) {
-        const cameraId = devices[0].id;
-        html5QrCode.start(
-          cameraId,
-          {
-            fps: 10,
-            qrbox: 250
-          },
-          (decodedText) => {
-            html5QrCode.stop();
-            procesarCodigo(decodedText);
-          },
-          (errorMessage) => {
-            console.log("Error escaneo:", errorMessage);
-          }
-        ).catch(err => {
-          console.error("No se pudo iniciar la cámara:", err);
+      const facingMode = useBackCamera ? "environment" : "user";
+      try {
+        const stream = await navigator.mediaDevices.getUserMedia({
+          video: { facingMode }
         });
+        video.srcObject = stream;
+
+        scanner = new QrScanner(video, result => {
+          output.textContent = `Código QR: ${result}`;
+          // Aquí podrías hacer un fetch o redirigir automáticamente si es un enlace
+        }, {
+          highlightScanRegion: true
+        });
+
+        scanner.start();
+      } catch (err) {
+        output.textContent = `Error al acceder a la cámara: ${err.message}`;
       }
-    }).catch(err => {
-      console.error("No se encontraron cámaras:", err);
+    }
+
+    toggleCam.addEventListener("click", () => {
+      useBackCamera = !useBackCamera;
+      startScanner();
     });
+
+    startScanner();
   </script>
 </body>
 </html>
