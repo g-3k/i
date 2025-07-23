@@ -4,30 +4,31 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>Transferir steficoins</title>
-  <link rel="stylesheet" href="global.css">
+  <link rel="stylesheet" href="global.css" />
 </head>
 <body>
   <div class="transfer-container">
-    <h1>Transferencia de steficoins</h1>
+    <h1>💸 Transferencia de Steficoins</h1>
 
-    <form id="transfer-form">
-      <label for="to">Alias destinatario:</label>
-      <input type="text" id="to" name="to" required>
+    <form id="transfer-form" class="transfer-form">
+      <label for="to">Alias del destinatario</label>
+      <input type="text" id="to" name="to" placeholder="ej: juanito" required />
 
-      <label for="cash">Cantidad:</label>
-      <input type="number" id="cash" name="cash" required min="1">
+      <label for="cash">Cantidad a transferir</label>
+      <input type="number" id="cash" name="cash" placeholder="ej: 25" required min="1" />
 
-      <div class="botones">
-        <button type="button" onclick="generarQR()">Crear QR</button>
-        <button type="submit">Transferir</button>
+      <div class="botones-transfer">
+        <button type="button" onclick="generarQR()">📲 Crear QR</button>
+        <button type="submit">🚀 Transferir</button>
       </div>
     </form>
 
     <section class="qr-section">
+      <h2>📷 QR generado</h2>
       <canvas id="qr-canvas"></canvas>
     </section>
 
-    <button onclick="volver()">Volver al inicio</button>
+    <button class="volver-btn" onclick="volver()">← Volver al inicio</button>
   </div>
 
   <script type="module">
@@ -43,11 +44,11 @@
     const fromUser = user.username;
     const dbRef = ref(db);
 
-    function volver() {
+    window.volver = function () {
       window.location.href = "home.html";
-    }
+    };
 
-    async function generarQR() {
+    window.generarQR = async function () {
       const to = document.getElementById("to").value.trim();
       const cash = document.getElementById("cash").value.trim();
 
@@ -56,15 +57,15 @@
         return;
       }
 
-      const url = `${location.origin}${location.pathname}?fromUser=${fromUser}&to=${encodeURIComponent(to)}&cash=${encodeURIComponent(cash)}`;
+      const payload = JSON.stringify({ fromUser, to, cash });
       const canvas = document.getElementById("qr-canvas");
 
       try {
-        await toCanvas(canvas, url, { width: 200 });
+        await toCanvas(canvas, payload, { width: 220 });
       } catch (err) {
         console.error("Error generando el QR:", err);
       }
-    }
+    };
 
     document.getElementById("transfer-form").addEventListener("submit", async (e) => {
       e.preventDefault();
@@ -103,14 +104,12 @@
           return;
         }
 
-        // Realizar la transferencia
         const updates = {};
         updates[`estudiantes/${fromUser}/coins`] = fromData.coins - cash;
         updates[`estudiantes/${to}/coins`] = toData.coins + cash;
 
         await update(dbRef, updates);
         alert(`Transferiste ${cash} steficoins a ${to}.`);
-
         window.location.href = "home.html";
       } catch (error) {
         console.error(error);
