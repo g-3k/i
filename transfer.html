@@ -1,82 +1,81 @@
 <!DOCTYPE html>
 <html lang="es">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>Transferencias - StefiApp</title>
-  <link rel="stylesheet" href="global.css"/>
-  <script type="module" src="firebase.js"></script>
+  <meta charset="UTF-8">
+  <title>Transferencias</title>
+  <link rel="stylesheet" href="global.css">
 </head>
 <body>
   <div class="container">
-    <h2>Transferencias</h2>
+    <h1>Transferencias</h1>
+    <label>Tipo de acción:</label>
+    <select id="actionSelector">
+      <option value="">Selecciona una opción</option>
+      <option value="transfer">Transferir</option>
+      <option value="crearQR">Crear QR</option>
+    </select>
 
-    <div class="selector">
-      <button onclick="selectMode('transfer')">Transferir</button>
-      <button onclick="selectMode('qr')">Crear QR</button>
+    <div id="transferForm" style="display:none;">
+      <input type="text" id="aliasDestino" placeholder="Alias destino">
+      <input type="number" id="montoTransferir" placeholder="Monto">
+      <button onclick="realizarTransferencia()">Transferir</button>
     </div>
 
-    <div id="transfer-section" class="hidden">
-      <input id="aliasInput" placeholder="Alias destino">
-      <input id="montoInput" type="number" placeholder="Monto a transferir">
-      <button onclick="realizarTransferencia()">Enviar</button>
-    </div>
-
-    <div id="qr-section" class="hidden">
-      <input id="montoQR" type="number" placeholder="Monto para QR">
+    <div id="qrForm" style="display:none;">
+      <input type="number" id="montoQR" placeholder="Monto para QR">
       <button onclick="crearQR()">Crear QR</button>
-      <div id="qr-preview"></div>
+      <br>
+      <canvas id="qrCanvas"></canvas>
     </div>
   </div>
 
+  <script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.0/build/qrcode.min.js"></script>
   <script type="module">
     import { getDatabase, ref, get, set, update } from "https://www.gstatic.com/firebasejs/9.6.10/firebase-database.js";
-    import { db, getCurrentUserAlias } from "./firebase.js";
+    import { db, usuarioActual } from './firebase.js';
 
-    const transferDiv = document.getElementById("transfer-section");
-    const qrDiv = document.getElementById("qr-section");
+    const selector = document.getElementById('actionSelector');
+    const transferForm = document.getElementById('transferForm');
+    const qrForm = document.getElementById('qrForm');
 
-    window.selectMode = (mode) => {
-      transferDiv.classList.add("hidden");
-      qrDiv.classList.add("hidden");
-      if (mode === 'transfer') transferDiv.classList.remove("hidden");
-      else qrDiv.classList.remove("hidden");
-    };
+    selector.addEventListener('change', () => {
+      transferForm.style.display = selector.value === 'transfer' ? 'block' : 'none';
+      qrForm.style.display = selector.value === 'crearQR' ? 'block' : 'none';
+    });
 
-    window.realizarTransferencia = async () => {
-      const aliasOrigen = await getCurrentUserAlias();
-      const aliasDestino = document.getElementById("aliasInput").value;
-      const monto = parseFloat(document.getElementById("montoInput").value);
+    window.realizarTransferencia = async function () {
+      const alias = document.getElementById('aliasDestino').value.trim();
+      const monto = parseFloat(document.getElementById('montoTransferir').value);
+      if (!alias || isNaN(monto)) return alert('Datos inválidos');
 
-      if (!aliasDestino || isNaN(monto) || monto <= 0) return alert("Datos inválidos.");
+      const origenRef = ref(db, `usuarios/${usuarioActual}`);
+      const destinoRef = ref(db, `usuarios/${alias}`);
 
-      const dbRef = ref(db);
-      const snapshot = await get(dbRef);
+      const [origenSnap, destinoSnap] = await Promise.all([get(origenRef), get(destinoRef)]);
 
-      if (!snapshot.exists()) return alert("Base de datos no disponible.");
+      if (!origenSnap.exists() || !destinoSnap.exists()) return alert("Alias no válido");
+      if (origenSnap.val().saldo < monto) return alert("Saldo insuficiente");
 
-      const data = snapshot.val();
-      const saldoOrigen = data.usuarios[aliasOrigen]?.dinero || 0;
-      const saldoDestino = data.usuarios[aliasDestino]?.dinero || 0;
+      await update(origenRef, { saldo: origenSnap.val().saldo - monto });
+      await update(destinoRef, { saldo: destinoSnap.val().saldo + monto });
 
-      if (saldoOrigen < monto) return alert("Saldo insuficiente.");
+      alert('Transferencia completada');
+    }
 
-      update(ref(db, 'usuarios/' + aliasOrigen), { dinero: saldoOrigen - monto });
-      update(ref(db, 'usuarios/' + aliasDestino), { dinero: saldoDestino + monto });
+    window.crearQR = async function () {
+      const monto = parseFloat(document.getElementById('montoQR').value);
+      if (isNaN(monto)) return alert("Monto inválido");
 
-      alert("Transferencia exitosa.");
-    };
+      const data = {
+        desde: usuarioActual,
+        monto
+      };
 
-    window.crearQR = async () => {
-      const alias = await getCurrentUserAlias();
-      const monto = parseFloat(document.getElementById("montoQR").value);
-      if (isNaN(monto) || monto <= 0) return alert("Monto inválido.");
-
-      const data = `${alias}|${monto}`;
-      const url = `https://api.qrserver.com/v1/create-qr-code/?data=${encodeURIComponent(data)}&size=200x200`;
-
-      document.getElementById("qr-preview").innerHTML = `<img src="${url}" alt="QR">`;
-    };
+      const canvas = document.getElementById("qrCanvas");
+      QRCode.toCanvas(canvas, JSON.stringify(data), function (error) {
+        if (error) console.error(error);
+      });
+    }
   </script>
 </body>
 </html>
