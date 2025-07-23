@@ -30,23 +30,8 @@
   </div>
 
   <script type="module">
-    import { initializeApp } from "https://www.gstatic.com/firebasejs/9.6.10/firebase-app.js";
-    import {
-      getDatabase, ref, get, set, update
-    } from "https://www.gstatic.com/firebasejs/9.6.10/firebase-database.js";
+    import { db, getUserData, updateUserData } from "./scripts/firebase.js";
 
-    const firebaseConfig = {
-      apiKey: "TU_API_KEY",
-      authDomain: "TU_DOMINIO.firebaseapp.com",
-      databaseURL: "https://TU_DB.firebaseio.com",
-      projectId: "TU_PROJECT_ID",
-      storageBucket: "TU_BUCKET.appspot.com",
-      messagingSenderId: "TU_SENDER_ID",
-      appId: "TU_APP_ID"
-    };
-
-    const app = initializeApp(firebaseConfig);
-    const db = getDatabase(app);
     const usuarioActual = localStorage.getItem("alias");
 
     function elegirModo(modo) {
@@ -62,43 +47,46 @@
     window.elegirModo = elegirModo;
 
     window.realizarTransferencia = async () => {
-      const alias = document.getElementById("alias").value;
+      const alias = document.getElementById("alias").value.trim();
       const monto = parseFloat(document.getElementById("monto").value);
+
       if (!alias || isNaN(monto) || monto <= 0) {
         alert("Datos inválidos");
         return;
       }
 
-      try {
-        const snapshot = await get(ref(db, `usuarios/${usuarioActual}`));
-        const snapshotDestino = await get(ref(db, `usuarios/${alias}`));
+      const emisor = await getUserData(usuarioActual);
+      const receptor = await getUserData(alias);
 
-        if (!snapshot.exists() || !snapshotDestino.exists()) {
-          alert("Alias no encontrado");
-          return;
-        }
+      if (!emisor || !receptor) {
+        alert("Alias no encontrado");
+        return;
+      }
 
-        const dinero = snapshot.val().dinero || 0;
-        const dineroDestino = snapshotDestino.val().dinero || 0;
+      if ((emisor.dinero || 0) < monto) {
+        alert("Fondos insuficientes");
+        return;
+      }
 
-        if (dinero < monto) {
-          alert("Fondos insuficientes");
-          return;
-        }
+      const nuevoSaldoEmisor = (emisor.dinero || 0) - monto;
+      const nuevoSaldoReceptor = (receptor.dinero || 0) + monto;
 
-        const updates = {};
-        updates[`usuarios/${usuarioActual}/dinero`] = dinero - monto;
-        updates[`usuarios/${alias}/dinero`] = dineroDestino + monto;
+      const actualizadoEmisor = { ...emisor, dinero: nuevoSaldoEmisor };
+      const actualizadoReceptor = { ...receptor, dinero: nuevoSaldoReceptor };
 
-        await update(ref(db), updates);
+      const ok1 = await updateUserData(usuarioActual, actualizadoEmisor);
+      const ok2 = await updateUserData(alias, actualizadoReceptor);
+
+      if (ok1 && ok2) {
         alert("Transferencia realizada con éxito");
-      } catch (e) {
-        alert("Error al transferir: " + e);
+      } else {
+        alert("Error al guardar la transferencia");
       }
     };
 
     window.crearQR = async () => {
       const monto = parseFloat(document.getElementById("montoQr").value);
+
       if (isNaN(monto) || monto <= 0) {
         alert("Monto inválido");
         return;
@@ -107,9 +95,14 @@
       const data = JSON.stringify({ origen: usuarioActual, monto });
       const container = document.getElementById("qr-result");
       container.innerHTML = "";
-      await QRCode.toCanvas(document.createElement("canvas"), data, { width: 256 })
-        .then(canvas => container.appendChild(canvas))
-        .catch(err => alert("Error al generar QR: " + err));
+
+      try {
+        const canvas = document.createElement("canvas");
+        await QRCode.toCanvas(canvas, data, { width: 256 });
+        container.appendChild(canvas);
+      } catch (err) {
+        alert("Error al generar QR: " + err);
+      }
     };
   </script>
 </body>
