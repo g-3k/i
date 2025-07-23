@@ -1,16 +1,17 @@
 <!DOCTYPE html>
 <html lang="es">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>StefiApp - Inicio</title>
-  <link rel="stylesheet" href="global.css">
+  <link rel="stylesheet" href="global.css" />
 </head>
 <body>
   <div class="home-wrapper">
     <header class="top-bar">
       <div class="bienvenida">
-        <h1>Hola, <span id="alias">Usuario</span></h1>
+        <h1>Hola, <span id="username">Usuario</span></h1>
+        <p class="alias-badge">@<span id="alias">alias</span></p>
         <p><coin><span id="coins">0</span></coin> steficoins</p>
       </div>
       <div class="acciones">
@@ -49,6 +50,7 @@
     get(child(dbRef, `estudiantes/${user.username}`)).then(snapshot => {
       if (snapshot.exists()) {
         const data = snapshot.val();
+        document.getElementById("username").textContent = user.username;
         document.getElementById("alias").textContent = data.alias;
         document.getElementById("coins").textContent = data.coins;
       } else {
