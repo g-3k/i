@@ -90,11 +90,6 @@ coin {
   transition: all 0.2s ease;
 }
 
-.acciones button:hover {
-  background-color: #2ea043;
-  transform: scale(1.05);
-}
-
 @media (min-width: 768px) {
   .acciones {
     flex-direction: row;
