@@ -2,68 +2,41 @@
 <html lang="es">
 <head>
   <meta charset="UTF-8">
-  <title>Escanear QR</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Generar QR</title>
   <link rel="stylesheet" href="global.css">
+  <script type="module" src="firebase.js"></script>
 </head>
 <body>
-  <h1>Escanear QR</h1>
-  <video id="video" width="300" height="300" style="border: 1px solid black;"></video>
-  <canvas id="canvas" hidden></canvas>
+  <div class="container">
+    <h2>Generar QR para alias</h2>
 
-  <script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.js"></script>
+    <input type="text" id="alias" placeholder="Tu alias">
+    <button id="btnGenerarQR">Generar QR</button>
+    <div id="qrContainer"></div>
+  </div>
+
   <script type="module">
-    import { getDatabase, ref, get, update } from "https://www.gstatic.com/firebasejs/9.6.10/firebase-database.js";
-    import { db, usuarioActual } from './firebase.js';
+    import { getUserData } from './firebase.js';
 
-    const video = document.getElementById('video');
-    const canvas = document.getElementById('canvas');
-    const context = canvas.getContext('2d');
+    document.getElementById('btnGenerarQR').addEventListener('click', async () => {
+      const alias = document.getElementById('alias').value.trim();
+      const userData = await getUserData(alias);
+      const qrContainer = document.getElementById('qrContainer');
+      qrContainer.innerHTML = "";
 
-    async function iniciarCamara() {
-      const stream = await navigator.mediaDevices.getUserMedia({
-        video: { facingMode: { ideal: "environment" } }
-      });
-      video.srcObject = stream;
-      video.setAttribute("playsinline", true);
-      video.play();
-      escanear();
-    }
-
-    async function escanear() {
-      requestAnimationFrame(escanear);
-
-      if (video.readyState !== video.HAVE_ENOUGH_DATA) return;
-
-      canvas.width = video.videoWidth;
-      canvas.height = video.videoHeight;
-      context.drawImage(video, 0, 0, canvas.width, canvas.height);
-      const imageData = context.getImageData(0, 0, canvas.width, canvas.height);
-      const codigo = jsQR(imageData.data, imageData.width, imageData.height, { inversionAttempts: "dontInvert" });
-
-      if (codigo) {
-        try {
-          const data = JSON.parse(codigo.data);
-          if (!data.desde || !data.monto) return alert("QR inválido");
-
-          const origenRef = ref(db, `usuarios/${data.desde}`);
-          const destinoRef = ref(db, `usuarios/${usuarioActual}`);
-
-          const [origenSnap, destinoSnap] = await Promise.all([get(origenRef), get(destinoRef)]);
-
-          if (!origenSnap.exists() || !destinoSnap.exists()) return alert("Alias inválido");
-          if (origenSnap.val().saldo < data.monto) return alert("Saldo insuficiente en el origen");
-
-          await update(origenRef, { saldo: origenSnap.val().saldo - data.monto });
-          await update(destinoRef, { saldo: destinoSnap.val().saldo + data.monto });
-
-          alert(`Transferencia recibida: $${data.monto}`);
-        } catch (e) {
-          alert("Error al procesar QR");
-        }
+      if (!userData) {
+        qrContainer.innerHTML = "<p>Alias no encontrado.</p>";
+        return;
       }
-    }
 
-    iniciarCamara();
+      const data = JSON.stringify({ alias, dinero: userData.dinero });
+      const qrURL = `https://api.qrserver.com/v1/create-qr-code/?data=${encodeURIComponent(data)}&size=200x200`;
+
+      const img = document.createElement("img");
+      img.src = qrURL;
+      qrContainer.appendChild(img);
+    });
   </script>
 </body>
 </html>
