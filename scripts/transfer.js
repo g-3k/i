@@ -1,88 +1,103 @@
-import { auth, db } from './firebase.js';
-import QRCode from 'https://cdn.jsdelivr.net/npm/qrcode@1.5.1/build/qrcode.min.js';
+import { getUserData, setUserData } from './firebase.js';
+import QRCode from 'https://cdn.jsdelivr.net/npm/qrcode@1.5.1/build/qrcode.esm.js';
 
-document.addEventListener("DOMContentLoaded", () => {
-  const form = document.getElementById('transfer-form');
-  const btnQR = document.getElementById('crear-qr');
-  const canvasQR = document.getElementById('qr-canvas');
-  const errorMsg = document.getElementById('mensaje-error');
+const alias = localStorage.getItem("alias");
+const mensaje = document.getElementById("transfer-msg");
+const inputDestino = document.getElementById("destinatario");
+const inputMonto = document.getElementById("monto");
+const canvasQR = document.getElementById("qr-canvas");
+const btnTransferir = document.getElementById("btn-transferir");
+const btnCrearQR = document.getElementById("btn-crear-qr");
 
-  let userAlias = '';
-  let userSaldo = 0;
+function mostrarMensaje(txt, color = 'red') {
+  mensaje.textContent = txt;
+  mensaje.style.color = color;
+}
 
-  auth.onAuthStateChanged(async (user) => {
-    if (!user) return window.location.href = '/login.html';
-    const doc = await db.collection("usuarios").doc(user.uid).get();
-    if (!doc.exists) return;
+// Realizar la transferencia
+async function transferirCoins(destino, monto) {
+  if (!alias || !destino || !monto) {
+    mostrarMensaje("Faltan datos.");
+    return;
+  }
 
-    const data = doc.data();
-    userAlias = data.alias;
-    userSaldo = data.saldo;
+  if (destino === alias) {
+    mostrarMensaje("No puedes transferirte monedas a ti mismo.");
+    return;
+  }
+
+  const datosOrigen = await getUserData(alias);
+  const datosDestino = await getUserData(destino);
+
+  if (!datosOrigen) {
+    mostrarMensaje("Tu cuenta no existe.");
+    return;
+  }
+
+  if (!datosDestino) {
+    mostrarMensaje("El destinatario no existe.");
+    return;
+  }
+
+  if (datosOrigen.coins < monto) {
+    mostrarMensaje("Saldo insuficiente.");
+    return;
+  }
+
+  // Realizar transferencia
+  await setUserData(alias, {
+    ...datosOrigen,
+    coins: datosOrigen.coins - monto,
   });
 
-  form.addEventListener('submit', async (e) => {
-    e.preventDefault();
-    const destino = document.getElementById('destino').value;
-    const monto = parseFloat(document.getElementById('monto').value);
-
-    if (monto <= 0 || isNaN(monto)) {
-      errorMsg.textContent = "Monto inválido";
-      return;
-    }
-
-    if (monto > userSaldo) {
-      errorMsg.textContent = "Saldo insuficiente";
-      return;
-    }
-
-    try {
-      // Restar al usuario actual
-      const user = auth.currentUser;
-      const userRef = db.collection("usuarios").doc(user.uid);
-      await userRef.update({ saldo: userSaldo - monto });
-
-      // Sumar al destino
-      const query = await db.collection("usuarios").where("alias", "==", destino).get();
-      if (query.empty) {
-        errorMsg.textContent = "Usuario destino no encontrado";
-        return;
-      }
-
-      const destinoDoc = query.docs[0];
-      const destinoRef = db.collection("usuarios").doc(destinoDoc.id);
-      const saldoDestino = destinoDoc.data().saldo || 0;
-      await destinoRef.update({ saldo: saldoDestino + monto });
-
-      alert("Transferencia realizada correctamente");
-      location.reload();
-
-    } catch (err) {
-      console.error(err);
-      errorMsg.textContent = "Error al transferir";
-    }
+  await setUserData(destino, {
+    ...datosDestino,
+    coins: datosDestino.coins + monto,
   });
 
-  btnQR.onclick = async () => {
-    const destino = document.getElementById('destino').value;
-    const monto = parseFloat(document.getElementById('monto').value);
+  mostrarMensaje(`¡Transferencia exitosa de ${monto} monedas a ${destino}!`, 'green');
+}
 
-    if (!destino || !monto || isNaN(monto)) {
-      errorMsg.textContent = "Completa los datos correctamente para generar QR";
+// Si viene por URL
+window.addEventListener("DOMContentLoaded", async () => {
+  const urlParams = new URLSearchParams(window.location.search);
+  const to = urlParams.get("to");
+  const coins = parseInt(urlParams.get("coins"));
+
+  if (to && coins > 0) {
+    await transferirCoins(to, coins);
+  }
+});
+
+// Evento botón "Transferir ahora"
+btnTransferir?.addEventListener("click", () => {
+  const destino = inputDestino.value.trim();
+  const monto = parseInt(inputMonto.value);
+
+  if (!destino || isNaN(monto) || monto <= 0) {
+    mostrarMensaje("Datos inválidos.");
+    return;
+  }
+
+  transferirCoins(destino, monto);
+});
+
+// Evento botón "Crear QR"
+btnCrearQR?.addEventListener("click", () => {
+  const destino = inputDestino.value.trim();
+  const monto = parseInt(inputMonto.value);
+
+  if (!destino || isNaN(monto) || monto <= 0) {
+    mostrarMensaje("Datos inválidos para el QR.");
+    return;
+  }
+
+  const enlaceQR = `${window.location.origin}/index/transfer?to=${encodeURIComponent(destino)}&coins=${monto}`;
+  QRCode.toCanvas(canvasQR, enlaceQR, { width: 200 }, (err) => {
+    if (err) {
+      mostrarMensaje("Error generando el QR.");
       return;
     }
-
-    if (monto > userSaldo) {
-      errorMsg.textContent = "No tienes saldo suficiente para generar este QR";
-      return;
-    }
-
-    const datosQR = JSON.stringify({ origen: userAlias, destino, monto });
-    try {
-      await QRCode.toCanvas(canvasQR, datosQR, { width: 200 });
-      errorMsg.textContent = "";
-    } catch (err) {
-      console.error("Error generando QR", err);
-      errorMsg.textContent = "Error generando QR";
-    }
-  };
+    mostrarMensaje("QR generado con éxito.", "green");
+  });
 });
