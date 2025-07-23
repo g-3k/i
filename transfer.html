@@ -3,119 +3,24 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>Transferir steficoins</title>
+  <title>StefiApp - Transferencias</title>
   <link rel="stylesheet" href="global.css" />
 </head>
 <body>
   <div class="transfer-container">
-    <h1>💸 Transferencia de Steficoins</h1>
-
-    <form id="transfer-form" class="transfer-form">
-      <label for="to">Alias del destinatario</label>
-      <input type="text" id="to" name="to" placeholder="ej: juanito" required />
-
-      <label for="cash">Cantidad a transferir</label>
-      <input type="number" id="cash" name="cash" placeholder="ej: 25" required min="1" />
-
-      <div class="botones-transfer">
-        <button type="button" onclick="generarQR()">📲 Crear QR</button>
-        <button type="submit">🚀 Transferir</button>
-      </div>
+    <h1>Transferencia</h1>
+    <form id="transfer-form">
+      <input type="text" id="destino" placeholder="Alias destino" required />
+      <input type="number" id="monto" placeholder="Monto a transferir" required />
+      <button type="submit">Transferir</button>
     </form>
 
-    <section class="qr-section">
-      <h2>📷 QR generado</h2>
-      <canvas id="qr-canvas"></canvas>
-    </section>
-
-    <button class="volver-btn" onclick="volver()">← Volver al inicio</button>
+    <button id="crear-qr">Crear QR</button>
+    <canvas id="qr-canvas"></canvas>
+    <p id="mensaje-error" class="error"></p>
   </div>
 
-  <script type="module">
-    import { db } from './scripts/firebase.js';
-    import { ref, get, update, child } from "https://www.gstatic.com/firebasejs/9.6.10/firebase-database.js";
-    import { toCanvas } from "https://cdn.jsdelivr.net/npm/qrcode@1.5.1/build/qrcode.esm.js";
-
-    const user = JSON.parse(localStorage.getItem("user"));
-    if (!user || !user.username) {
-      window.location.href = "index.html";
-    }
-
-    const fromUser = user.username;
-    const dbRef = ref(db);
-
-    window.volver = function () {
-      window.location.href = "home.html";
-    };
-
-    window.generarQR = async function () {
-      const to = document.getElementById("to").value.trim();
-      const cash = document.getElementById("cash").value.trim();
-
-      if (!to || !cash || parseInt(cash) <= 0) {
-        alert("Completá los campos correctamente antes de generar el QR.");
-        return;
-      }
-
-      const payload = JSON.stringify({ fromUser, to, cash });
-      const canvas = document.getElementById("qr-canvas");
-
-      try {
-        await toCanvas(canvas, payload, { width: 220 });
-      } catch (err) {
-        console.error("Error generando el QR:", err);
-      }
-    };
-
-    document.getElementById("transfer-form").addEventListener("submit", async (e) => {
-      e.preventDefault();
-      const to = document.getElementById("to").value.trim();
-      const cash = parseInt(document.getElementById("cash").value);
-
-      if (!to || isNaN(cash) || cash <= 0) {
-        alert("Campos inválidos.");
-        return;
-      }
-
-      if (to === fromUser) {
-        alert("No podés transferirte a vos mismo.");
-        return;
-      }
-
-      try {
-        const snapshot = await get(child(dbRef, "estudiantes"));
-        const data = snapshot.val();
-
-        const fromData = data[fromUser];
-        const toData = data[to];
-
-        if (!fromData) {
-          alert("Tu usuario no existe en la base.");
-          return;
-        }
-
-        if (!toData) {
-          alert("El usuario destino no existe.");
-          return;
-        }
-
-        if (fromData.coins < cash) {
-          alert("No tenés suficiente saldo.");
-          return;
-        }
-
-        const updates = {};
-        updates[`estudiantes/${fromUser}/coins`] = fromData.coins - cash;
-        updates[`estudiantes/${to}/coins`] = toData.coins + cash;
-
-        await update(dbRef, updates);
-        alert(`Transferiste ${cash} steficoins a ${to}.`);
-        window.location.href = "home.html";
-      } catch (error) {
-        console.error(error);
-        alert("Error al procesar la transferencia.");
-      }
-    });
-  </script>
+  <script type="module" src="scripts/firebase.js"></script>
+  <script type="module" src="scripts/transfer.js"></script>
 </body>
 </html>
