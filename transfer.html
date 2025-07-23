@@ -2,22 +2,19 @@
 <html lang="es">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>StefiApp - Transferencias</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Transferencia - StefiApp</title>
   <link rel="stylesheet" href="global.css" />
 </head>
 <body>
   <div class="transfer-container">
-    <h1>Transferencia</h1>
-    <form id="transfer-form">
-      <input type="text" id="destino" placeholder="Alias destino" required />
-      <input type="number" id="monto" placeholder="Monto a transferir" required />
-      <button type="submit">Transferir</button>
-    </form>
-
-    <button id="crear-qr">Crear QR</button>
+    <h1 class="title">Transferir monedas</h1>
+    <input type="text" id="destinatario" placeholder="Nombre del destinatario" />
+    <input type="number" id="monto" placeholder="Cantidad a transferir" />
+    <button id="btn-transferir">Transferir ahora</button>
+    <button id="btn-crear-qr">Crear QR</button>
     <canvas id="qr-canvas"></canvas>
-    <p id="mensaje-error" class="error"></p>
+    <p id="transfer-msg" class="msg"></p>
   </div>
 
   <script type="module" src="scripts/firebase.js"></script>
