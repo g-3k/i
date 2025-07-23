@@ -17,65 +17,106 @@
       <label for="cash">Cantidad:</label>
       <input type="number" id="cash" name="cash" required min="1">
 
-      <button type="submit">Transferir</button>
+      <div class="botones">
+        <button type="button" onclick="generarQR()">Crear QR</button>
+        <button type="submit">Transferir</button>
+      </div>
     </form>
 
     <section class="qr-section">
-      <h2>QR de esta transferencia</h2>
       <canvas id="qr-canvas"></canvas>
-      <p>Escaneá este QR para abrir esta transferencia en otro dispositivo.</p>
     </section>
 
     <button onclick="volver()">Volver al inicio</button>
   </div>
 
   <script type="module">
-    import { QRCode } from "https://cdn.jsdelivr.net/npm/qrcode@1.5.1/build/qrcode.esm.js";
+    import { db } from './scripts/firebase.js';
+    import { ref, get, update, child } from "https://www.gstatic.com/firebasejs/9.6.10/firebase-database.js";
+    import { toCanvas } from "https://cdn.jsdelivr.net/npm/qrcode@1.5.1/build/qrcode.esm.js";
 
-    // Leer parámetros si vienen por URL
-    const urlParams = new URLSearchParams(window.location.search);
-    const fromUser = urlParams.get("fromUser") || JSON.parse(localStorage.getItem("user"))?.username;
-    const to = urlParams.get("to");
-    const cash = urlParams.get("cash");
+    const user = JSON.parse(localStorage.getItem("user"));
+    if (!user || !user.username) {
+      window.location.href = "index.html";
+    }
 
-    // Prellenar formulario
-    if (to) document.getElementById("to").value = to;
-    if (cash) document.getElementById("cash").value = cash;
-
-    const form = document.getElementById("transfer-form");
-    form.addEventListener("submit", (e) => {
-      e.preventDefault();
-      const toValue = document.getElementById("to").value.trim();
-      const cashValue = parseInt(document.getElementById("cash").value);
-
-      if (!toValue || !cashValue || cashValue <= 0) {
-        alert("Datos inválidos.");
-        return;
-      }
-
-      // Aquí iría la lógica Firebase para hacer la transferencia real si la querés
-      alert(`Transferencia enviada de ${fromUser} a ${toValue} por ${cashValue} steficoins.`);
-    });
+    const fromUser = user.username;
+    const dbRef = ref(db);
 
     function volver() {
       window.location.href = "home.html";
     }
 
-    function actualizarQR() {
-      const toValue = document.getElementById("to").value.trim();
-      const cashValue = document.getElementById("cash").value.trim();
-      const qrUrl = `${location.origin}${location.pathname}?fromUser=${fromUser}&to=${encodeURIComponent(toValue)}&cash=${encodeURIComponent(cashValue)}`;
+    async function generarQR() {
+      const to = document.getElementById("to").value.trim();
+      const cash = document.getElementById("cash").value.trim();
 
+      if (!to || !cash || parseInt(cash) <= 0) {
+        alert("Completá los campos correctamente antes de generar el QR.");
+        return;
+      }
+
+      const url = `${location.origin}${location.pathname}?fromUser=${fromUser}&to=${encodeURIComponent(to)}&cash=${encodeURIComponent(cash)}`;
       const canvas = document.getElementById("qr-canvas");
-      QRCode.toCanvas(canvas, qrUrl, { width: 200 }, function (error) {
-        if (error) console.error(error);
-      });
+
+      try {
+        await toCanvas(canvas, url, { width: 200 });
+      } catch (err) {
+        console.error("Error generando el QR:", err);
+      }
     }
 
-    // Actualiza el QR cada vez que cambia el formulario
-    document.getElementById("to").addEventListener("input", actualizarQR);
-    document.getElementById("cash").addEventListener("input", actualizarQR);
-    window.addEventListener("load", actualizarQR);
+    document.getElementById("transfer-form").addEventListener("submit", async (e) => {
+      e.preventDefault();
+      const to = document.getElementById("to").value.trim();
+      const cash = parseInt(document.getElementById("cash").value);
+
+      if (!to || isNaN(cash) || cash <= 0) {
+        alert("Campos inválidos.");
+        return;
+      }
+
+      if (to === fromUser) {
+        alert("No podés transferirte a vos mismo.");
+        return;
+      }
+
+      try {
+        const snapshot = await get(child(dbRef, "estudiantes"));
+        const data = snapshot.val();
+
+        const fromData = data[fromUser];
+        const toData = data[to];
+
+        if (!fromData) {
+          alert("Tu usuario no existe en la base.");
+          return;
+        }
+
+        if (!toData) {
+          alert("El usuario destino no existe.");
+          return;
+        }
+
+        if (fromData.coins < cash) {
+          alert("No tenés suficiente saldo.");
+          return;
+        }
+
+        // Realizar la transferencia
+        const updates = {};
+        updates[`estudiantes/${fromUser}/coins`] = fromData.coins - cash;
+        updates[`estudiantes/${to}/coins`] = toData.coins + cash;
+
+        await update(dbRef, updates);
+        alert(`Transferiste ${cash} steficoins a ${to}.`);
+
+        window.location.href = "home.html";
+      } catch (error) {
+        console.error(error);
+        alert("Error al procesar la transferencia.");
+      }
+    });
   </script>
 </body>
 </html>
