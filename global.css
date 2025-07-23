@@ -1,3 +1,4 @@
+/* RESET GENERAL */
 * {
   box-sizing: border-box;
   margin: 0;
@@ -6,23 +7,25 @@
 
 body {
   font-family: 'Segoe UI', sans-serif;
-  background: #0d1117;
+  background-color: #0d1117;
   color: #e6edf3;
   min-height: 100vh;
   display: flex;
   flex-direction: column;
 }
 
-.home-wrapper {
-  display: flex;
-  flex-direction: column;
-  gap: 2rem;
-  width: 100%;
+/* CONTENEDOR GENERAL */
+.home-wrapper,
+.login-container {
   max-width: 700px;
   margin: auto;
   padding: 2rem;
+  display: flex;
+  flex-direction: column;
+  gap: 2rem;
 }
 
+/* ENCABEZADO DE BIENVENIDA */
 .top-bar {
   background-color: #161b22;
   border-radius: 1rem;
@@ -66,6 +69,7 @@ coin {
   margin-right: 0.3rem;
 }
 
+/* BOTONES DE ACCIÓN */
 .acciones {
   display: flex;
   flex-direction: column;
@@ -99,6 +103,7 @@ coin {
   }
 }
 
+/* CONTENIDO PRINCIPAL */
 main.contenido {
   display: flex;
   flex-direction: column;
@@ -145,4 +150,66 @@ a {
 
 a:hover {
   background-color: #30363d;
+}
+
+/* LOGIN */
+.login-container {
+  background-color: #161b22;
+  border-radius: 1rem;
+  padding: 2rem;
+  box-shadow: 0 0 25px rgba(255, 255, 255, 0.05);
+  margin-top: 10vh;
+  align-items: center;
+  text-align: center;
+}
+
+.title {
+  font-size: 2.5rem;
+  color: #58a6ff;
+  margin-bottom: 2rem;
+}
+
+.login-form {
+  display: flex;
+  flex-direction: column;
+  gap: 1.2rem;
+  width: 100%;
+  max-width: 350px;
+}
+
+.login-form input {
+  padding: 0.8rem;
+  border-radius: 10px;
+  border: 1px solid #30363d;
+  background-color: #0d1117;
+  color: #c9d1d9;
+  font-size: 1rem;
+}
+
+.login-form input::placeholder {
+  color: #6e7681;
+}
+
+.login-form button {
+  padding: 0.8rem;
+  border-radius: 10px;
+  background-color: #238636;
+  color: white;
+  font-weight: bold;
+  border: none;
+  cursor: pointer;
+  transition: background 0.2s ease;
+}
+
+.login-form button:hover {
+  background-color: #2ea043;
+  transform: scale(1.04);
+}
+
+/* MENSAJE DE ERROR */
+.error {
+  color: #f85149;
+  margin-top: 1rem;
+  font-weight: bold;
+  font-size: 0.95rem;
 }
