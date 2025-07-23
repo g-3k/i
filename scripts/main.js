@@ -15,13 +15,13 @@ document.getElementById('login-form').addEventListener('submit', async e => {
         localStorage.setItem('user', JSON.stringify({ username }));
         window.location.href = "home.html";
       } else {
-        alert("Contraseña incorrecta.");
+        document.getElementById("error-msg").textContent = "Contraseña incorrecta.";
       }
     } else {
-      alert("Usuario no encontrado.");
+      document.getElementById("error-msg").textContent = "Usuario no encontrado.";
     }
   } catch (error) {
     console.error(error);
-    alert("Error al conectarse con Firebase.");
+    document.getElementById("error-msg").textContent = "Error al conectarse con Firebase.";
   }
 });
