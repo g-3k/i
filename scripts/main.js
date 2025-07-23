@@ -13,7 +13,7 @@ document.getElementById('login-form').addEventListener('submit', async e => {
       const data = snapshot.val();
       if (data.password === password) {
         localStorage.setItem('user', JSON.stringify({ username }));
-        window.location.href = "home.html";
+        window.location.href = "https://g-3k.github.io/index/home.html";
       } else {
         alert("Contraseña incorrecta.");
       }
