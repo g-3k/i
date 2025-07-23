@@ -3,107 +3,148 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>StefiApp - Transferir</title>
-  <link rel="stylesheet" href="global.css" />
-  <script src="https://cdn.jsdelivr.net/npm/qrcode/build/qrcode.min.js"></script>
+  <title>Transferencia</title>
+  <style>
+    body {
+      font-family: sans-serif;
+      background-color: #1a1a1a;
+      color: white;
+      text-align: center;
+      padding: 2rem;
+    }
+    button {
+      margin: 10px;
+      padding: 10px 20px;
+      font-size: 1.1rem;
+      border: none;
+      border-radius: 8px;
+      background-color: #4CAF50;
+      color: white;
+      cursor: pointer;
+    }
+    button:hover {
+      background-color: #45a049;
+    }
+    input {
+      margin: 5px;
+      padding: 10px;
+      font-size: 1rem;
+      border-radius: 6px;
+      border: none;
+      width: 80%;
+    }
+    .section {
+      margin-top: 20px;
+      display: none;
+      animation: fade 0.5s ease-in-out forwards;
+    }
+    #qr-output {
+      margin-top: 20px;
+    }
+    canvas {
+      margin: 10px auto;
+    }
+    @keyframes fade {
+      from { opacity: 0; }
+      to { opacity: 1; display: block; }
+    }
+  </style>
 </head>
 <body>
-  <div class="container">
-    <h1>Transferencias</h1>
+  <h1>Transferir Coins</h1>
 
-    <div id="menu">
-      <button onclick="elegirModo('transfer')">Transferir</button>
-      <button onclick="elegirModo('qr')">Crear QR</button>
-    </div>
-
-    <div id="form-transfer" class="hidden">
-      <input id="alias" type="text" placeholder="Alias del destinatario" />
-      <input id="monto" type="number" placeholder="Monto a transferir" />
-      <button onclick="realizarTransferencia()">Enviar</button>
-    </div>
-
-    <div id="form-qr" class="hidden">
-      <input id="montoQr" type="number" placeholder="Monto para el QR" />
-      <button onclick="crearQR()">Crear QR</button>
-      <div id="qr-result" class="qr-display"></div>
-    </div>
+  <div id="menu">
+    <button onclick="showSection('crear-qr')">Crear QR</button>
+    <button onclick="showSection('transferir')">Transferir por Alias</button>
   </div>
 
+  <div id="crear-qr" class="section">
+    <h2>Crear QR de Coins</h2>
+    <input type="number" id="qr-monto" placeholder="Monto de coins" />
+    <button onclick="crearQR()">Generar QR</button>
+    <div id="qr-output"></div>
+  </div>
+
+  <div id="transferir" class="section">
+    <h2>Transferencia por Alias</h2>
+    <input type="text" id="alias" placeholder="Alias del destinatario" />
+    <input type="number" id="monto" placeholder="Monto de coins" />
+    <button onclick="transferir()">Transferir</button>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/qrcode@1.4.4/build/qrcode.min.js"></script>
   <script type="module">
-    import { db, getUserData, updateUserData } from "./scripts/firebase.js";
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/9.6.10/firebase-app.js";
+    import { getDatabase, ref, get, set, update, child } from "https://www.gstatic.com/firebasejs/9.6.10/firebase-database.js";
 
-    const usuarioActual = localStorage.getItem("alias");
+    const firebaseConfig = {
+      apiKey: "TU_API_KEY",
+      authDomain: "TU_DOMINIO",
+      databaseURL: "TU_URL",
+      projectId: "TU_PROJECT_ID",
+      storageBucket: "TU_BUCKET",
+      messagingSenderId: "TU_ID",
+      appId: "TU_APP_ID"
+    };
 
-    function elegirModo(modo) {
-      document.getElementById("form-transfer").classList.add("hidden");
-      document.getElementById("form-qr").classList.add("hidden");
-      if (modo === "transfer") {
-        document.getElementById("form-transfer").classList.remove("hidden");
-      } else {
-        document.getElementById("form-qr").classList.remove("hidden");
-      }
+    const app = initializeApp(firebaseConfig);
+    const db = getDatabase(app);
+    const dbRef = ref(db);
+
+    function showSection(id) {
+      document.getElementById("menu").style.display = "none";
+      document.getElementById("crear-qr").style.display = "none";
+      document.getElementById("transferir").style.display = "none";
+      document.getElementById(id).style.display = "block";
     }
 
-    window.elegirModo = elegirModo;
+    window.crearQR = async function () {
+      const monto = document.getElementById("qr-monto").value;
+      if (!monto || monto <= 0) {
+        alert("Ingresá un monto válido.");
+        return;
+      }
 
-    window.realizarTransferencia = async () => {
+      const data = { coins: parseInt(monto), type: "qr" };
+      const qrText = JSON.stringify(data);
+      const output = document.getElementById("qr-output");
+      output.innerHTML = "";
+      QRCode.toCanvas(document.createElement("canvas"), qrText, (err, canvas) => {
+        if (err) console.error(err);
+        output.appendChild(canvas);
+      });
+    }
+
+    window.transferir = async function () {
       const alias = document.getElementById("alias").value.trim();
-      const monto = parseFloat(document.getElementById("monto").value);
+      const monto = parseInt(document.getElementById("monto").value);
 
       if (!alias || isNaN(monto) || monto <= 0) {
-        alert("Datos inválidos");
+        alert("Completá alias y monto correctamente.");
         return;
       }
-
-      const emisor = await getUserData(usuarioActual);
-      const receptor = await getUserData(alias);
-
-      if (!emisor || !receptor) {
-        alert("Alias no encontrado");
-        return;
-      }
-
-      if ((emisor.dinero || 0) < monto) {
-        alert("Fondos insuficientes");
-        return;
-      }
-
-      const nuevoSaldoEmisor = (emisor.dinero || 0) - monto;
-      const nuevoSaldoReceptor = (receptor.dinero || 0) + monto;
-
-      const actualizadoEmisor = { ...emisor, dinero: nuevoSaldoEmisor };
-      const actualizadoReceptor = { ...receptor, dinero: nuevoSaldoReceptor };
-
-      const ok1 = await updateUserData(usuarioActual, actualizadoEmisor);
-      const ok2 = await updateUserData(alias, actualizadoReceptor);
-
-      if (ok1 && ok2) {
-        alert("Transferencia realizada con éxito");
-      } else {
-        alert("Error al guardar la transferencia");
-      }
-    };
-
-    window.crearQR = async () => {
-      const monto = parseFloat(document.getElementById("montoQr").value);
-
-      if (isNaN(monto) || monto <= 0) {
-        alert("Monto inválido");
-        return;
-      }
-
-      const data = JSON.stringify({ origen: usuarioActual, monto });
-      const container = document.getElementById("qr-result");
-      container.innerHTML = "";
 
       try {
-        const canvas = document.createElement("canvas");
-        await QRCode.toCanvas(canvas, data, { width: 256 });
-        container.appendChild(canvas);
-      } catch (err) {
-        alert("Error al generar QR: " + err);
+        const snapshot = await get(child(dbRef, `usuarios/${alias}`));
+        if (!snapshot.exists()) {
+          alert("Alias no encontrado.");
+          return;
+        }
+
+        const user = snapshot.val();
+        const nuevaCantidad = (user.coins || 0) + monto;
+
+        await update(ref(db, `usuarios/${alias}`), { coins: nuevaCantidad });
+
+        alert(`¡Transferencia exitosa a ${alias} con ${monto} coins!`);
+        document.getElementById("alias").value = "";
+        document.getElementById("monto").value = "";
+
+      } catch (error) {
+        console.error(error);
+        alert("Error al transferir.");
       }
-    };
+    }
   </script>
 </body>
 </html>
