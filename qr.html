@@ -2,80 +2,67 @@
 <html lang="es">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>Escanear QR - StefiApp</title>
   <link rel="stylesheet" href="global.css" />
-  <style>
-    #qr-reader {
-      width: 100%;
-      max-width: 350px;
-      margin: 1rem auto;
-    }
-
-    #qr-info {
-      margin-top: 1rem;
-      font-size: 1rem;
-      color: #58a6ff;
-    }
-
-    #file-input {
-      background-color: #0d1117;
-      color: #c9d1d9;
-      border: 1px solid #30363d;
-      padding: 0.8rem;
-      border-radius: 10px;
-      margin-top: 1rem;
-      width: 100%;
-      font-size: 0.95rem;
-    }
-
-    #file-input::file-selector-button {
-      background: #21262d;
-      border: none;
-      padding: 0.5rem 1rem;
-      color: #58a6ff;
-      cursor: pointer;
-      border-radius: 8px;
-      margin-right: 1rem;
-    }
-
-    .note {
-      font-size: 0.85rem;
-      color: #8b949e;
-      margin-top: 0.5rem;
-    }
-
-    .back-btn {
-      background-color: #21262d;
-      color: white;
-      padding: 0.6rem 1rem;
-      border: none;
-      border-radius: 10px;
-      cursor: pointer;
-      margin-top: 2rem;
-      transition: background 0.2s ease;
-    }
-
-    .back-btn:hover {
-      background-color: #30363d;
-    }
-  </style>
+  <script src="https://unpkg.com/html5-qrcode"></script>
 </head>
 <body>
-  <div class="transfer-container">
-    <h1 class="title">📷 Escanear Código QR</h1>
+  <div class="qr-container">
+    <h1>Escanear QR</h1>
+    <div id="reader" style="width: 100%; max-width: 400px; margin: auto;"></div>
 
-    <div id="qr-reader"></div>
-    <p id="qr-info">Esperando escaneo...</p>
+    <div class="manual-input">
+      <p>O ingresalo manualmente:</p>
+      <input type="text" id="manualCode" placeholder="Código QR" />
+      <button onclick="procesarCodigo(document.getElementById('manualCode').value)">Enviar</button>
+    </div>
 
-    <input type="file" id="file-input" accept="image/*" />
-    <p class="note">¿No querés usar la cámara? Subí una imagen del QR.</p>
-
-    <button class="back-btn" onclick="window.location.href='home.html'">⬅ Volver al inicio</button>
+    <div id="resultado"></div>
   </div>
 
-  <!-- Librerías -->
-  <script src="https://unpkg.com/html5-qrcode"></script>
-  <script type="module" src="scripts/qr.js"></script>
+  <script>
+    const procesarCodigo = (codigo) => {
+      document.getElementById("resultado").innerText = `Código recibido: ${codigo}`;
+
+      // Redirigir o hacer algo con el código
+      if (codigo.startsWith("stefi.app/transfer/?")) {
+        const params = new URLSearchParams(codigo.split("?")[1]);
+        const alias = params.get("alias");
+        const puntos = parseInt(params.get("puntos"));
+
+        if (alias && !isNaN(puntos)) {
+          window.location.href = `transfer.html?alias=${alias}&puntos=${puntos}`;
+        } else {
+          alert("QR no válido");
+        }
+      }
+    };
+
+    const html5QrCode = new Html5Qrcode("reader");
+    Html5Qrcode.getCameras().then(devices => {
+      if (devices && devices.length) {
+        const cameraId = devices[0].id;
+        html5QrCode.start(
+          cameraId,
+          {
+            fps: 10,
+            qrbox: 250
+          },
+          (decodedText) => {
+            html5QrCode.stop();
+            procesarCodigo(decodedText);
+          },
+          (errorMessage) => {
+            console.log("Error escaneo:", errorMessage);
+          }
+        ).catch(err => {
+          console.error("No se pudo iniciar la cámara:", err);
+        });
+      }
+    }).catch(err => {
+      console.error("No se encontraron cámaras:", err);
+    });
+  </script>
 </body>
 </html>
