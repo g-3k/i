@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>StefiApp - Inicio</title>
+  <link rel="stylesheet" href="global.css">
+</head>
+<body>
+  <div class="home-wrapper">
+    <header class="top-bar">
+      <div class="bienvenida">
+        <h1>Hola, <span id="alias">Usuario</span></h1>
+        <p><coin><span id="coins">0</span></coin> steficoins</p>
+      </div>
+      <div class="acciones">
+        <button onclick="irATransfer()">Transferir</button>
+        <button onclick="logout()">Cerrar sesión</button>
+      </div>
+    </header>
+
+    <main class="contenido">
+      <section class="noticias">
+        <h2>🌟 Novedades</h2>
+        <p>Aquí podrías mostrar anuncios, tareas nuevas o recordatorios.</p>
+      </section>
+
+      <section class="acciones-destacadas">
+        <h2>🚀 Acciones rápidas</h2>
+        <ul>
+          <li><a href="dashboard.html">Ver tareas</a></li>
+          <li><a href="claim.html">Reclamar puntos</a></li>
+          <li><a href="qr.html">Escanear QR</a></li>
+        </ul>
+      </section>
+    </main>
+  </div>
+
+  <script type="module">
+    import { db } from './scripts/firebase.js';
+    import { ref, get, child } from "https://www.gstatic.com/firebasejs/9.6.10/firebase-database.js";
+
+    const user = JSON.parse(localStorage.getItem("user"));
+    if (!user || !user.username) {
+      window.location.href = "index.html";
+    }
+
+    const dbRef = ref(db);
+    get(child(dbRef, `estudiantes/${user.username}`)).then(snapshot => {
+      if (snapshot.exists()) {
+        const data = snapshot.val();
+        document.getElementById("alias").textContent = data.alias;
+        document.getElementById("coins").textContent = data.coins;
+      } else {
+        alert("Usuario no encontrado en la base de datos.");
+        window.location.href = "index.html";
+      }
+    });
+
+    function irATransfer() {
+      window.location.href = "transfer.html";
+    }
+
+    function logout() {
+      localStorage.removeItem("user");
+      window.location.href = "index.html";
+    }
+  </script>
+</body>
+</html>

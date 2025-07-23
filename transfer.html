@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Transferir steficoins</title>
+  <link rel="stylesheet" href="global.css">
+</head>
+<body>
+  <div class="transfer-container">
+    <h1>Transferencia de steficoins</h1>
+
+    <form id="transfer-form">
+      <label for="to">Alias destinatario:</label>
+      <input type="text" id="to" name="to" required>
+
+      <label for="cash">Cantidad:</label>
+      <input type="number" id="cash" name="cash" required min="1">
+
+      <button type="submit">Transferir</button>
+    </form>
+
+    <section class="qr-section">
+      <h2>QR de esta transferencia</h2>
+      <canvas id="qr-canvas"></canvas>
+      <p>Escaneá este QR para abrir esta transferencia en otro dispositivo.</p>
+    </section>
+
+    <button onclick="volver()">Volver al inicio</button>
+  </div>
+
+  <script type="module">
+    import { QRCode } from "https://cdn.jsdelivr.net/npm/qrcode@1.5.1/build/qrcode.esm.js";
+
+    // Leer parámetros si vienen por URL
+    const urlParams = new URLSearchParams(window.location.search);
+    const fromUser = urlParams.get("fromUser") || JSON.parse(localStorage.getItem("user"))?.username;
+    const to = urlParams.get("to");
+    const cash = urlParams.get("cash");
+
+    // Prellenar formulario
+    if (to) document.getElementById("to").value = to;
+    if (cash) document.getElementById("cash").value = cash;
+
+    const form = document.getElementById("transfer-form");
+    form.addEventListener("submit", (e) => {
+      e.preventDefault();
+      const toValue = document.getElementById("to").value.trim();
+      const cashValue = parseInt(document.getElementById("cash").value);
+
+      if (!toValue || !cashValue || cashValue <= 0) {
+        alert("Datos inválidos.");
+        return;
+      }
+
+      // Aquí iría la lógica Firebase para hacer la transferencia real si la querés
+      alert(`Transferencia enviada de ${fromUser} a ${toValue} por ${cashValue} steficoins.`);
+    });
+
+    function volver() {
+      window.location.href = "home.html";
+    }
+
+    function actualizarQR() {
+      const toValue = document.getElementById("to").value.trim();
+      const cashValue = document.getElementById("cash").value.trim();
+      const qrUrl = `${location.origin}${location.pathname}?fromUser=${fromUser}&to=${encodeURIComponent(toValue)}&cash=${encodeURIComponent(cashValue)}`;
+
+      const canvas = document.getElementById("qr-canvas");
+      QRCode.toCanvas(canvas, qrUrl, { width: 200 }, function (error) {
+        if (error) console.error(error);
+      });
+    }
+
+    // Actualiza el QR cada vez que cambia el formulario
+    document.getElementById("to").addEventListener("input", actualizarQR);
+    document.getElementById("cash").addEventListener("input", actualizarQR);
+    window.addEventListener("load", actualizarQR);
+  </script>
+</body>
+</html>
