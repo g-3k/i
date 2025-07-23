@@ -215,3 +215,111 @@ a:hover {
   font-weight: bold;
   font-size: 0.95rem;
 }
+
+/* TRANSFERENCIA */
+.transfer-container {
+  max-width: 600px;
+  margin: auto;
+  margin-top: 5vh;
+  background-color: #161b22;
+  padding: 2rem;
+  border-radius: 1.5rem;
+  box-shadow: 0 0 20px rgba(0,0,0,0.3);
+  display: flex;
+  flex-direction: column;
+  gap: 2rem;
+  align-items: center;
+}
+
+.transfer-container h1 {
+  font-size: 2rem;
+  color: #58a6ff;
+  text-align: center;
+}
+
+.transfer-form {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 1.2rem;
+}
+
+.transfer-form label {
+  font-size: 1rem;
+  color: #c9d1d9;
+}
+
+.transfer-form input {
+  padding: 0.8rem;
+  border-radius: 10px;
+  border: 1px solid #30363d;
+  background-color: #0d1117;
+  color: #e6edf3;
+  font-size: 1rem;
+}
+
+.transfer-form input:focus {
+  outline: none;
+  border-color: #58a6ff;
+}
+
+.botones-transfer {
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.botones-transfer button {
+  flex: 1;
+  padding: 0.8rem;
+  font-size: 1rem;
+  font-weight: bold;
+  color: white;
+  background-color: #238636;
+  border: none;
+  border-radius: 10px;
+  cursor: pointer;
+  transition: background 0.2s ease;
+}
+
+.botones-transfer button:hover {
+  background-color: #2ea043;
+  transform: scale(1.04);
+}
+
+/* QR */
+.qr-section {
+  margin-top: 2rem;
+  text-align: center;
+}
+
+.qr-section h2 {
+  margin-bottom: 1rem;
+  font-size: 1.2rem;
+  color: #79c0ff;
+}
+
+.qr-section canvas {
+  background-color: #fff;
+  padding: 1rem;
+  border-radius: 12px;
+  box-shadow: 0 0 15px rgba(0,0,0,0.2);
+}
+
+/* VOLVER */
+.volver-btn {
+  margin-top: 2rem;
+  padding: 0.8rem 1rem;
+  font-size: 1rem;
+  color: #58a6ff;
+  background: none;
+  border: 1px solid #58a6ff;
+  border-radius: 10px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.volver-btn:hover {
+  background-color: #21262d;
+  transform: scale(1.03);
+}
