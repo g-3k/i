@@ -4,53 +4,54 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>Escanear QR - StefiApp</title>
-  <link rel="stylesheet" href="global.css" />
-  <script src="https://unpkg.com/html5-qrcode"></script>
+  <link rel="stylesheet" href="global.css"/>
+  <script type="module" src="firebase.js"></script>
 </head>
 <body>
-  <div class="qr-container">
-    <h1>Escanear código QR</h1>
-    <div id="reader" style="width: 300px; margin: auto;"></div>
-    <div id="result"></div>
+  <div class="container">
+    <h2>Escanear QR</h2>
+    <video id="video" style="width: 100%; max-width: 400px;" autoplay></video>
+    <p id="resultado"></p>
   </div>
 
   <script type="module">
-    import { app, db, getAlias, updateMoney } from './firebase.js';
-    import { ref, get, set } from "https://www.gstatic.com/firebasejs/9.6.10/firebase-database.js";
+    import { db, getCurrentUserAlias } from './firebase.js';
+    import { ref, get, update } from "https://www.gstatic.com/firebasejs/9.6.10/firebase-database.js";
+    import QrScanner from "https://cdn.jsdelivr.net/npm/qr-scanner@1.4.2/qr-scanner.min.js";
 
-    function onScanSuccess(decodedText) {
-      try {
-        const data = JSON.parse(decodedText);
-        if (!data.from || !data.amount) {
-          document.getElementById("result").innerText = "QR inválido.";
-          return;
-        }
+    const videoElem = document.getElementById('video');
+    const resultado = document.getElementById('resultado');
 
-        html5QrcodeScanner.clear();
-        document.getElementById("reader").innerHTML = "Procesando...";
+    const scanner = new QrScanner(videoElem, async result => {
+      scanner.stop();
+      const [aliasOrigen, montoStr] = result.data.split('|');
+      const monto = parseFloat(montoStr);
+      const aliasDestino = await getCurrentUserAlias();
 
-        getAlias().then(async (alias) => {
-          if (alias === data.from) {
-            document.getElementById("result").innerText = "No puedes transferirte a vos mismo.";
-            return;
-          }
+      const snapshot = await get(ref(db));
+      const data = snapshot.val();
 
-          await updateMoney(data.from, -data.amount);
-          await updateMoney(alias, data.amount);
-          document.getElementById("result").innerText = `Transferencia exitosa de ${data.amount} desde ${data.from}`;
-        });
-      } catch (e) {
-        document.getElementById("result").innerText = "Error al procesar el QR.";
+      const saldoOrigen = data.usuarios[aliasOrigen]?.dinero || 0;
+      const saldoDestino = data.usuarios[aliasDestino]?.dinero || 0;
+
+      if (saldoOrigen < monto) {
+        resultado.textContent = "Saldo insuficiente del emisor.";
+        return;
       }
-    }
 
-    const html5QrcodeScanner = new Html5QrcodeScanner("reader", {
-      fps: 10,
-      qrbox: 250,
-      facingMode: { exact: "environment" }  // Usar cámara trasera si está disponible
+      await update(ref(db, 'usuarios/' + aliasOrigen), { dinero: saldoOrigen - monto });
+      await update(ref(db, 'usuarios/' + aliasDestino), { dinero: saldoDestino + monto });
+
+      resultado.textContent = `¡Recibiste $${monto} de ${aliasOrigen}!`;
+    }, {
+      returnDetailedScanResult: true,
+      preferredCamera: 'environment'
     });
 
-    html5QrcodeScanner.render(onScanSuccess);
+    QrScanner.hasCamera().then(hasCamera => {
+      if (hasCamera) scanner.start();
+      else resultado.textContent = "No se detectó cámara.";
+    });
   </script>
 </body>
 </html>
