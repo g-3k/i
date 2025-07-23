@@ -1,48 +1,82 @@
 <!DOCTYPE html>
 <html lang="es">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>StefiApp - Transferir</title>
-  <link rel="stylesheet" href="global.css">
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Transferencias - StefiApp</title>
+  <link rel="stylesheet" href="global.css"/>
+  <script type="module" src="firebase.js"></script>
 </head>
 <body>
-  <div class="transfer-container">
-    <h1>Transferir dinero</h1>
-    <label for="amount">Monto:</label>
-    <input type="number" id="amount" min="1">
+  <div class="container">
+    <h2>Transferencias</h2>
 
-    <button onclick="transfer()">Transferir directamente</button>
-    <button onclick="generateQR()">Crear QR para transferencia</button>
+    <div class="selector">
+      <button onclick="selectMode('transfer')">Transferir</button>
+      <button onclick="selectMode('qr')">Crear QR</button>
+    </div>
 
-    <div id="qr-code"></div>
+    <div id="transfer-section" class="hidden">
+      <input id="aliasInput" placeholder="Alias destino">
+      <input id="montoInput" type="number" placeholder="Monto a transferir">
+      <button onclick="realizarTransferencia()">Enviar</button>
+    </div>
+
+    <div id="qr-section" class="hidden">
+      <input id="montoQR" type="number" placeholder="Monto para QR">
+      <button onclick="crearQR()">Crear QR</button>
+      <div id="qr-preview"></div>
+    </div>
   </div>
 
   <script type="module">
-    import { app, db, getAlias, updateMoney } from './firebase.js';
-    import { ref, get, set } from "https://www.gstatic.com/firebasejs/9.6.10/firebase-database.js";
+    import { getDatabase, ref, get, set, update } from "https://www.gstatic.com/firebasejs/9.6.10/firebase-database.js";
+    import { db, getCurrentUserAlias } from "./firebase.js";
 
-    const amountInput = document.getElementById("amount");
-    const qrDiv = document.getElementById("qr-code");
+    const transferDiv = document.getElementById("transfer-section");
+    const qrDiv = document.getElementById("qr-section");
 
-    async function transfer() {
-      const alias = await getAlias();
-      const amount = parseInt(amountInput.value);
-      const receiver = prompt("Alias del destinatario:");
-      if (!alias || !receiver || !amount) return alert("Faltan datos.");
-      await updateMoney(alias, -amount);
-      await updateMoney(receiver, amount);
-      alert("Transferencia realizada.");
-    }
+    window.selectMode = (mode) => {
+      transferDiv.classList.add("hidden");
+      qrDiv.classList.add("hidden");
+      if (mode === 'transfer') transferDiv.classList.remove("hidden");
+      else qrDiv.classList.remove("hidden");
+    };
 
-    async function generateQR() {
-      const alias = await getAlias();
-      const amount = parseInt(amountInput.value);
-      if (!alias || !amount) return alert("Faltan datos.");
-      const payload = JSON.stringify({ from: alias, amount });
-      const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?data=${encodeURIComponent(payload)}&size=150x150`;
-      qrDiv.innerHTML = `<img src="${qrUrl}" alt="QR Code">`;
-    }
+    window.realizarTransferencia = async () => {
+      const aliasOrigen = await getCurrentUserAlias();
+      const aliasDestino = document.getElementById("aliasInput").value;
+      const monto = parseFloat(document.getElementById("montoInput").value);
+
+      if (!aliasDestino || isNaN(monto) || monto <= 0) return alert("Datos inválidos.");
+
+      const dbRef = ref(db);
+      const snapshot = await get(dbRef);
+
+      if (!snapshot.exists()) return alert("Base de datos no disponible.");
+
+      const data = snapshot.val();
+      const saldoOrigen = data.usuarios[aliasOrigen]?.dinero || 0;
+      const saldoDestino = data.usuarios[aliasDestino]?.dinero || 0;
+
+      if (saldoOrigen < monto) return alert("Saldo insuficiente.");
+
+      update(ref(db, 'usuarios/' + aliasOrigen), { dinero: saldoOrigen - monto });
+      update(ref(db, 'usuarios/' + aliasDestino), { dinero: saldoDestino + monto });
+
+      alert("Transferencia exitosa.");
+    };
+
+    window.crearQR = async () => {
+      const alias = await getCurrentUserAlias();
+      const monto = parseFloat(document.getElementById("montoQR").value);
+      if (isNaN(monto) || monto <= 0) return alert("Monto inválido.");
+
+      const data = `${alias}|${monto}`;
+      const url = `https://api.qrserver.com/v1/create-qr-code/?data=${encodeURIComponent(data)}&size=200x200`;
+
+      document.getElementById("qr-preview").innerHTML = `<img src="${url}" alt="QR">`;
+    };
   </script>
 </body>
 </html>
