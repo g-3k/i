@@ -14,7 +14,7 @@ body {
   flex-direction: column;
 }
 
-/* CONTENEDOR GENERAL */
+/* CONTENEDORES */
 .home-wrapper,
 .login-container {
   max-width: 700px;
@@ -25,7 +25,7 @@ body {
   gap: 2rem;
 }
 
-/* ENCABEZADO DE BIENVENIDA */
+/* HEADER */
 .top-bar {
   background-color: #161b22;
   border-radius: 1rem;
@@ -42,15 +42,18 @@ body {
   color: #58a6ff;
 }
 
-#alias {
-  display: inline-block;
-  background-color: #21262d;
-  color: #58a6ff;
-  padding: 0.4rem 1rem;
-  border-radius: 1rem;
-  font-size: 1.3rem;
+#username {
   font-weight: bold;
-  margin-left: 0.5rem;
+}
+
+.alias-badge {
+  font-size: 1rem;
+  color: #8b949e;
+  background-color: #21262d;
+  padding: 0.3rem 0.8rem;
+  border-radius: 1rem;
+  display: inline-block;
+  margin-top: 0.3rem;
 }
 
 .bienvenida p {
@@ -69,7 +72,7 @@ coin {
   margin-right: 0.3rem;
 }
 
-/* BOTONES DE ACCIÓN */
+/* BOTONES */
 .acciones {
   display: flex;
   flex-direction: column;
@@ -206,7 +209,6 @@ a:hover {
   transform: scale(1.04);
 }
 
-/* MENSAJE DE ERROR */
 .error {
   color: #f85149;
   margin-top: 1rem;
