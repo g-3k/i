@@ -2,108 +2,83 @@
 <html lang="es">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>StefiApp - Escanear QR</title>
-  <script src="https://unpkg.com/html5-qrcode@2.3.10/minified/html5-qrcode.min.js"></script>
-  <script type="module" src="scripts/firebase.js"></script>
-  <style>
-    body {
-      font-family: Arial, sans-serif;
-      padding: 20px;
-      background-color: #111;
-      color: white;
-      text-align: center;
-    }
-    #qr-reader {
-      width: 300px;
-      margin: 0 auto;
-    }
-    #result {
-      margin-top: 20px;
-      font-size: 18px;
-    }
-    button {
-      padding: 10px 20px;
-      margin-top: 20px;
-      background-color: #0f0;
-      border: none;
-      cursor: pointer;
-      font-size: 16px;
-    }
-  </style>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>StefiApp - Transferir</title>
+  <link rel="stylesheet" href="global.css" />
+  <script src="https://cdn.jsdelivr.net/npm/qrcode/build/qrcode.min.js"></script>
 </head>
 <body>
-  <h1>Escanear QR</h1>
-  <div id="qr-reader"></div>
-  <div id="result"></div>
-  <button id="accept-btn" style="display:none;">Aceptar esta transferencia</button>
+  <h1>Transferir Coins</h1>
+
+  <label>Alias actual:</label>
+  <input id="aliasInput" placeholder="Tu alias"/><br><br>
+
+  <label>Alias destino:</label>
+  <input id="destinoInput" placeholder="Alias de destino"/><br><br>
+
+  <label>Monto:</label>
+  <input id="montoInput" type="number" min="1" /><br><br>
+
+  <button id="transferBtn">Transferir</button>
+
+  <h3>Coins actuales: <span id="coinsLabel">?</span></h3>
 
   <script type="module">
-    import { db, ref, get, update } from './scripts/firebase.js';
+    import { getUserData, updateUserData } from "./scripts/firebase.js";
 
-    let aliasActual = localStorage.getItem('alias') || 'anon';
-    let transferencia = null;
+    const aliasInput = document.getElementById("aliasInput");
+    const destinoInput = document.getElementById("destinoInput");
+    const montoInput = document.getElementById("montoInput");
+    const transferBtn = document.getElementById("transferBtn");
+    const coinsLabel = document.getElementById("coinsLabel");
 
-    function startScanner() {
-      const qrReader = new Html5Qrcode("qr-reader");
-      qrReader.start(
-        { facingMode: "environment" },
-        {
-          fps: 10,
-          qrbox: 250,
-        },
-        async (decodedText) => {
-          try {
-            transferencia = JSON.parse(decodedText);
-            document.getElementById("result").textContent =
-              `Transferencia de ${transferencia.coins} coins de ${transferencia.from}`;
-            document.getElementById("accept-btn").style.display = "inline-block";
-            qrReader.stop(); // Detenemos la cámara después de leer
-          } catch (e) {
-            document.getElementById("result").textContent = "QR inválido.";
-          }
-        },
-        (errorMessage) => {
-          // console.warn(`QR no detectado: ${errorMessage}`);
-        }
-      );
-    }
+    let usuarioActual = null;
 
-    document.getElementById("accept-btn").addEventListener("click", async () => {
-      if (!transferencia) return;
-
-      const aliasDestino = aliasActual;
-      const aliasOrigen = transferencia.from;
-      const cantidad = parseInt(transferencia.coins);
-
-      const snapshot = await get(ref(db, 'usuarios'));
-      const datos = snapshot.val();
-
-      if (!datos[aliasOrigen]) {
-        alert("El usuario origen no existe.");
+    aliasInput.addEventListener("blur", async () => {
+      const alias = aliasInput.value.trim();
+      if (!alias) return;
+      usuarioActual = await getUserData(alias);
+      if (!usuarioActual) {
+        coinsLabel.textContent = "Alias no encontrado";
         return;
       }
-      if (!datos[aliasDestino]) {
-        alert("Tu alias no existe.");
-        return;
-      }
-      if (datos[aliasOrigen].coins < cantidad) {
-        alert("El usuario origen no tiene suficientes coins.");
-        return;
-      }
-
-      // Realizar transferencia
-      const nuevoOrigen = datos[aliasOrigen].coins - cantidad;
-      const nuevoDestino = datos[aliasDestino].coins + cantidad;
-
-      await update(ref(db, 'usuarios/' + aliasOrigen), { coins: nuevoOrigen });
-      await update(ref(db, 'usuarios/' + aliasDestino), { coins: nuevoDestino });
-
-      alert(`¡Recibiste ${cantidad} coins de ${aliasOrigen}!`);
-      location.reload();
+      coinsLabel.textContent = usuarioActual.coins || 0;
     });
 
-    startScanner();
+    transferBtn.addEventListener("click", async () => {
+      const destinoAlias = destinoInput.value.trim();
+      const monto = parseInt(montoInput.value);
+
+      if (!usuarioActual || !destinoAlias || isNaN(monto) || monto <= 0) {
+        alert("Completa todos los campos correctamente.");
+        return;
+      }
+
+      if (usuarioActual.coins < monto) {
+        alert("No tienes suficientes coins.");
+        return;
+      }
+
+      const receptor = await getUserData(destinoAlias);
+      if (!receptor) {
+        alert("Alias de destino no encontrado.");
+        return;
+      }
+
+      const nuevoEmisor = { ...usuarioActual, coins: usuarioActual.coins - monto };
+      const nuevoReceptor = { ...receptor, coins: (receptor.coins || 0) + monto };
+
+      const exito1 = await updateUserData(usuarioActual._id, nuevoEmisor);
+      const exito2 = await updateUserData(receptor._id, nuevoReceptor);
+
+      if (exito1 && exito2) {
+        alert("Transferencia realizada con éxito.");
+        coinsLabel.textContent = nuevoEmisor.coins;
+        usuarioActual = nuevoEmisor;
+      } else {
+        alert("Error en la transferencia.");
+      }
+    });
   </script>
 </body>
 </html>
