@@ -30,59 +30,93 @@
   </div>
 
   <script type="module">
-import { db, getUserData, updateUserData } from "./scripts/firebase.js";
+    import { db, getUserData, updateUserData } from "./scripts/firebase.js";
+    import { get, ref, child } from "https://www.gstatic.com/firebasejs/9.6.10/firebase-database.js";
 
-window.realizarTransferencia = async () => {
-  const receptorAlias = document.getElementById("alias").value.trim();
-  const monto = parseFloat(document.getElementById("monto").value);
+    function elegirModo(modo) {
+      document.getElementById("form-transfer").classList.add("hidden");
+      document.getElementById("form-qr").classList.add("hidden");
+      if (modo === "transfer") {
+        document.getElementById("form-transfer").classList.remove("hidden");
+      } else {
+        document.getElementById("form-qr").classList.remove("hidden");
+      }
+    }
 
-  if (!receptorAlias || isNaN(monto) || monto <= 0) {
-    alert("Datos inválidos");
-    return;
-  }
+    window.elegirModo = elegirModo;
 
-  // 👤 Obtener usuario actual desde localStorage
-  const user = JSON.parse(localStorage.getItem("user"));
-  const userId = user?.id;
+    window.realizarTransferencia = async () => {
+      const receptorAlias = document.getElementById("alias").value.trim();
+      const monto = parseFloat(document.getElementById("monto").value);
 
-  if (!userId) {
-    alert("Usuario no autenticado");
-    return;
-  }
+      if (!receptorAlias || isNaN(monto) || monto <= 0) {
+        alert("Datos inválidos");
+        return;
+      }
 
-  // 📥 Obtener emisor directamente
-  const emisorSnap = await get(child(ref(db), `estudiantes/${userId}`));
-  const emisor = emisorSnap.exists() ? emisorSnap.val() : null;
+      const user = JSON.parse(localStorage.getItem("user"));
+      const emisorId = user?.id;
 
-  // 🔍 Buscar receptor por alias
-  const receptor = await getUserData(receptorAlias);
+      if (!emisorId) {
+        alert("Usuario no autenticado");
+        return;
+      }
 
-  if (!emisor || !receptor) {
-    alert("Alias no encontrado");
-    return;
-  }
+      // Obtener emisor por ID
+      const emisorSnap = await get(child(ref(db), `estudiantes/${emisorId}`));
+      const emisor = emisorSnap.exists() ? emisorSnap.val() : null;
 
-  if ((emisor.coins || 0) < monto) {
-    alert("Fondos insuficientes");
-    return;
-  }
+      // Buscar receptor por alias
+      const receptor = await getUserData(receptorAlias);
 
-  const nuevoSaldoEmisor = (emisor.coins || 0) - monto;
-  const nuevoSaldoReceptor = (receptor.coins || 0) + monto;
+      if (!emisor || !receptor) {
+        alert("Alias no encontrado");
+        return;
+      }
 
-  const actualizadoEmisor = { ...emisor, coins: nuevoSaldoEmisor };
-  const actualizadoReceptor = { ...receptor, coins: nuevoSaldoReceptor };
+      if ((emisor.coins || 0) < monto) {
+        alert("Fondos insuficientes");
+        return;
+      }
 
-  const ok1 = await updateUserData(userId, actualizadoEmisor);
-  const ok2 = await updateUserData(receptor._id, actualizadoReceptor);
+      const nuevoSaldoEmisor = (emisor.coins || 0) - monto;
+      const nuevoSaldoReceptor = (receptor.coins || 0) + monto;
 
-  if (ok1 && ok2) {
-    alert("Transferencia realizada con éxito");
-  } else {
-    alert("Error al guardar la transferencia");
-  }
-};
+      const actualizadoEmisor = { ...emisor, coins: nuevoSaldoEmisor };
+      const actualizadoReceptor = { ...receptor, coins: nuevoSaldoReceptor };
 
+      const ok1 = await updateUserData(emisorId, actualizadoEmisor);
+      const ok2 = await updateUserData(receptor._id, actualizadoReceptor);
+
+      if (ok1 && ok2) {
+        alert("Transferencia realizada con éxito");
+      } else {
+        alert("Error al guardar la transferencia");
+      }
+    };
+
+    window.crearQR = async () => {
+      const monto = parseFloat(document.getElementById("montoQr").value);
+
+      if (isNaN(monto) || monto <= 0) {
+        alert("Monto inválido");
+        return;
+      }
+
+      const user = JSON.parse(localStorage.getItem("user"));
+      const data = JSON.stringify({ origen: user?.id || "", monto });
+
+      const container = document.getElementById("qr-result");
+      container.innerHTML = "";
+
+      try {
+        const canvas = document.createElement("canvas");
+        await QRCode.toCanvas(canvas, data, { width: 256 });
+        container.appendChild(canvas);
+      } catch (err) {
+        alert("Error al generar QR: " + err);
+      }
+    };
   </script>
 </body>
 </html>
