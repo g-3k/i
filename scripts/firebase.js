@@ -1,10 +1,11 @@
+// scripts/firebase.js
+
 // Importación de módulos de Firebase
 import { initializeApp } from "https://www.gstatic.com/firebasejs/9.6.10/firebase-app.js";
 import {
   getDatabase,
   ref,
   get,
-  child,
   set
 } from "https://www.gstatic.com/firebasejs/9.6.10/firebase-database.js";
 
@@ -21,10 +22,10 @@ const firebaseConfig = {
 
 // Inicialización de Firebase
 const app = initializeApp(firebaseConfig);
-export const db = getDatabase(app);
+const db = getDatabase(app);
 
-// 🔍 Buscar usuario por alias (receptor)
-export async function getUserData(aliasBuscado) {
+// Función para obtener datos de un usuario por alias
+async function getUserData(aliasBuscado) {
   const snapshot = await get(ref(db, 'estudiantes'));
   if (snapshot.exists()) {
     const estudiantes = snapshot.val();
@@ -38,8 +39,8 @@ export async function getUserData(aliasBuscado) {
   return null;
 }
 
-// 💾 Actualizar datos de un usuario por su ID
-export async function updateUserData(userId, data) {
+// Función para actualizar datos de usuario por ID
+async function updateUserData(userId, data) {
   const userRef = ref(db, `estudiantes/${userId}`);
   try {
     await set(userRef, data);
@@ -49,3 +50,6 @@ export async function updateUserData(userId, data) {
     return false;
   }
 }
+
+// Exportar lo necesario
+export { db, getUserData, updateUserData };
