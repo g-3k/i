@@ -5,118 +5,87 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>StefiApp - Transferir</title>
   <link rel="stylesheet" href="global.css" />
-  <script src="https://cdn.jsdelivr.net/npm/qrcode/build/qrcode.min.js"></script>
-</head>
-<body>
-  <div class="container">
-    <h1>Transferencias</h1>
-
-    <div id="menu">
-      <button onclick="elegirModo('transfer')">Transferir</button>
-      <button onclick="elegirModo('qr')">Crear QR</button>
-    </div>
-
-    <div id="form-transfer" class="hidden">
-      <input id="alias" type="text" placeholder="Alias del destinatario" />
-      <input id="monto" type="number" placeholder="Monto a transferir" />
-      <button onclick="realizarTransferencia()">Enviar</button>
-    </div>
-
-    <div id="form-qr" class="hidden">
-      <input id="montoQr" type="number" placeholder="Monto para el QR" />
-      <button onclick="crearQR()">Crear QR</button>
-      <div id="qr-result" class="qr-display"></div>
-    </div>
-  </div>
-
   <script type="module">
-    import { db, getUserData, updateUserData } from "./scripts/firebase.js";
-    import { get, ref, child } from "https://www.gstatic.com/firebasejs/9.6.10/firebase-database.js";
+    import { db } from './firebase.js';
+    import { ref, get, set, child, update } from "https://www.gstatic.com/firebasejs/9.6.10/firebase-database.js";
 
-    function elegirModo(modo) {
-      document.getElementById("form-transfer").classList.add("hidden");
-      document.getElementById("form-qr").classList.add("hidden");
-      if (modo === "transfer") {
-        document.getElementById("form-transfer").classList.remove("hidden");
-      } else {
-        document.getElementById("form-qr").classList.remove("hidden");
+    const user = JSON.parse(localStorage.getItem("user"));
+    const username = user?.username;
+
+    if (!username) {
+      alert("Usuario no logueado.");
+      window.location.href = "login.html";
+    }
+
+    const dbRef = ref(db);
+
+    async function cargarCoins() {
+      const snapshot = await get(child(dbRef, `estudiantes/${username}/coins`));
+      document.getElementById("coins").textContent = snapshot.exists() ? snapshot.val() : "0";
+    }
+
+    async function transferirCoins(e) {
+      e.preventDefault();
+      const alias = document.getElementById("alias").value.trim();
+      const cantidad = parseInt(document.getElementById("cantidad").value);
+
+      if (!alias || isNaN(cantidad) || cantidad <= 0) {
+        alert("Datos inválidos.");
+        return;
+      }
+
+      try {
+        const [origenSnap, destinoSnap] = await Promise.all([
+          get(child(dbRef, `estudiantes/${username}/coins`)),
+          get(child(dbRef, `estudiantes/${alias}/coins`))
+        ]);
+
+        if (!destinoSnap.exists()) {
+          alert("Alias no encontrado.");
+          return;
+        }
+
+        const saldoOrigen = origenSnap.exists() ? origenSnap.val() : 0;
+        const saldoDestino = destinoSnap.val();
+
+        if (saldoOrigen < cantidad) {
+          alert("No tienes suficientes coins.");
+          return;
+        }
+
+        // Actualizar ambos saldos
+        await update(ref(db), {
+          [`estudiantes/${username}/coins`]: saldoOrigen - cantidad,
+          [`estudiantes/${alias}/coins`]: saldoDestino + cantidad
+        });
+
+        alert("Transferencia exitosa.");
+        cargarCoins();
+        document.getElementById("transferir-form").reset();
+      } catch (error) {
+        console.error("Error al transferir:", error);
+        alert("Hubo un error.");
       }
     }
 
-    window.elegirModo = elegirModo;
-
-    window.realizarTransferencia = async () => {
-      const receptorAlias = document.getElementById("alias").value.trim();
-      const monto = parseFloat(document.getElementById("monto").value);
-
-      if (!receptorAlias || isNaN(monto) || monto <= 0) {
-        alert("Datos inválidos");
-        return;
-      }
-
-      const user = JSON.parse(localStorage.getItem("user"));
-      const emisorId = user?.id;
-
-      if (!emisorId) {
-        alert("Usuario no autenticado");
-        return;
-      }
-
-      // Obtener emisor por ID
-      const emisorSnap = await get(child(ref(db), `estudiantes/${emisorId}`));
-      const emisor = emisorSnap.exists() ? emisorSnap.val() : null;
-
-      // Buscar receptor por alias
-      const receptor = await getUserData(receptorAlias);
-
-      if (!emisor || !receptor) {
-        alert("Alias no encontrado");
-        return;
-      }
-
-      if ((emisor.coins || 0) < monto) {
-        alert("Fondos insuficientes");
-        return;
-      }
-
-      const nuevoSaldoEmisor = (emisor.coins || 0) - monto;
-      const nuevoSaldoReceptor = (receptor.coins || 0) + monto;
-
-      const actualizadoEmisor = { ...emisor, coins: nuevoSaldoEmisor };
-      const actualizadoReceptor = { ...receptor, coins: nuevoSaldoReceptor };
-
-      const ok1 = await updateUserData(emisorId, actualizadoEmisor);
-      const ok2 = await updateUserData(receptor._id, actualizadoReceptor);
-
-      if (ok1 && ok2) {
-        alert("Transferencia realizada con éxito");
-      } else {
-        alert("Error al guardar la transferencia");
-      }
-    };
-
-    window.crearQR = async () => {
-      const monto = parseFloat(document.getElementById("montoQr").value);
-
-      if (isNaN(monto) || monto <= 0) {
-        alert("Monto inválido");
-        return;
-      }
-
-      const user = JSON.parse(localStorage.getItem("user"));
-      const data = JSON.stringify({ origen: user?.id || "", monto });
-
-      const container = document.getElementById("qr-result");
-      container.innerHTML = "";
-
-      try {
-        const canvas = document.createElement("canvas");
-        await QRCode.toCanvas(canvas, data, { width: 256 });
-        container.appendChild(canvas);
-      } catch (err) {
-        alert("Error al generar QR: " + err);
-      }
-    };
+    window.addEventListener("DOMContentLoaded", () => {
+      document.getElementById("alias-actual").textContent = username;
+      document.getElementById("transferir-form").addEventListener("submit", transferirCoins);
+      cargarCoins();
+    });
   </script>
+</head>
+<body>
+  <div class="container">
+    <h1>Transferir Coins</h1>
+    <p>Alias actual: <strong id="alias-actual"></strong></p>
+    <p>Coins actuales: <strong id="coins">...</strong></p>
+
+    <form id="transferir-form">
+      <input type="text" id="alias" placeholder="Alias del destinatario" required />
+      <input type="number" id="cantidad" placeholder="Cantidad a transferir" required />
+      <button type="submit">Transferir</button>
+    </form>
+  </div>
 </body>
 </html>
