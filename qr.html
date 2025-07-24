@@ -39,7 +39,7 @@
   <button id="accept-btn" style="display:none;">Aceptar esta transferencia</button>
 
   <script type="module">
-    import { app, db, ref, get, update } from './scripts/firebase.js';
+    import { db, ref, get, update } from './scripts/firebase.js';
 
     let aliasActual = localStorage.getItem('alias') || 'anon';
     let transferencia = null;
