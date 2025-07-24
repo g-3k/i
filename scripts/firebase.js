@@ -1,8 +1,14 @@
-// Import the functions you need from the SDKs you need
+// Importación de módulos de Firebase
 import { initializeApp } from "https://www.gstatic.com/firebasejs/9.6.10/firebase-app.js";
-import { getDatabase, ref, get, child } from "https://www.gstatic.com/firebasejs/9.6.10/firebase-database.js";
+import {
+  getDatabase,
+  ref,
+  get,
+  child,
+  set
+} from "https://www.gstatic.com/firebasejs/9.6.10/firebase-database.js";
 
-// Your web app's Firebase configuration
+// Configuración de Firebase
 const firebaseConfig = {
   apiKey: "AIzaSyB2U5TWDc6JR2XFelPC6h5eZO0q1OSUx20",
   authDomain: "steficoin.firebaseapp.com",
@@ -13,29 +19,28 @@ const firebaseConfig = {
   databaseURL: "https://steficoin-default-rtdb.firebaseio.com"
 };
 
-// Initialize Firebase
+// Inicialización de Firebase
 const app = initializeApp(firebaseConfig);
 export const db = getDatabase(app);
 
-// ✅ Función para obtener datos de un usuario por alias
-export async function getUserData(alias) {
-  const dbRef = ref(db);
-  try {
-    const snapshot = await get(child(dbRef, `usuarios/${alias}`));
-    if (snapshot.exists()) {
-      return snapshot.val();
-    } else {
-      return null;
+// 🔍 Buscar usuario por alias (receptor)
+export async function getUserData(aliasBuscado) {
+  const snapshot = await get(ref(db, 'estudiantes'));
+  if (snapshot.exists()) {
+    const estudiantes = snapshot.val();
+    for (const id in estudiantes) {
+      const user = estudiantes[id];
+      if (user.alias === aliasBuscado) {
+        return { ...user, _id: id };
+      }
     }
-  } catch (error) {
-    console.error("Error al obtener datos del usuario:", error);
-    return null;
   }
+  return null;
 }
 
-// ✅ Función para guardar los datos actualizados
-export async function updateUserData(alias, data) {
-  const userRef = ref(db, `usuarios/${alias}`);
+// 💾 Actualizar datos de un usuario por su ID
+export async function updateUserData(userId, data) {
+  const userRef = ref(db, `estudiantes/${userId}`);
   try {
     await set(userRef, data);
     return true;
