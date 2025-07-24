@@ -9,8 +9,21 @@
     import { db } from './firebase.js';
     import { ref, get, set, child, update } from "https://www.gstatic.com/firebasejs/9.6.10/firebase-database.js";
 
-    const user = JSON.parse(localStorage.getItem("user"));
+    console.log("========== INICIO SCRIPT ==========");
+
+    const userRaw = localStorage.getItem("user");
+    console.log("localStorage.getItem('user'):", userRaw);
+
+    let user = null;
+    try {
+      user = JSON.parse(userRaw);
+      console.log("Parsed user object:", user);
+    } catch (e) {
+      console.error("Error parseando user de localStorage:", e);
+    }
+
     const username = user?.username;
+    console.log("Valor username extraído:", username);
 
     if (!username) {
       alert("Usuario no logueado.");
@@ -20,14 +33,26 @@
     const dbRef = ref(db);
 
     async function cargarCoins() {
-      const snapshot = await get(child(dbRef, `estudiantes/${username}/coins`));
-      document.getElementById("coins").textContent = snapshot.exists() ? snapshot.val() : "0";
+      console.log("Ejecutando cargarCoins()");
+      try {
+        const snapshot = await get(child(dbRef, `estudiantes/${username}/coins`));
+        console.log(`Snapshot coins para estudiantes/${username}/coins: exists=${snapshot.exists()}, val=`, snapshot.val());
+        const coinsValor = snapshot.exists() ? snapshot.val() : "0";
+        document.getElementById("coins").textContent = coinsValor;
+        console.log("Coins actualizados en DOM:", coinsValor);
+      } catch (error) {
+        console.error("Error al obtener coins:", error);
+      }
     }
 
     async function transferirCoins(e) {
       e.preventDefault();
+      console.log("Ejecutando transferirCoins()");
+
       const alias = document.getElementById("alias").value.trim();
       const cantidad = parseInt(document.getElementById("cantidad").value);
+
+      console.log("Valores recibidos del formulario - alias:", alias, ", cantidad:", cantidad);
 
       if (!alias || isNaN(cantidad) || cantidad <= 0) {
         alert("Datos inválidos.");
@@ -39,6 +64,9 @@
           get(child(dbRef, `estudiantes/${username}/coins`)),
           get(child(dbRef, `estudiantes/${alias}/coins`))
         ]);
+
+        console.log(`Snapshot saldo origen (${username}): exists=${origenSnap.exists()}, val=`, origenSnap.val());
+        console.log(`Snapshot saldo destino (${alias}): exists=${destinoSnap.exists()}, val=`, destinoSnap.val());
 
         if (!destinoSnap.exists()) {
           alert("Alias no encontrado.");
@@ -52,6 +80,8 @@
           alert("No tienes suficientes coins.");
           return;
         }
+
+        console.log(`Actualizando saldos: origen(${username}) ${saldoOrigen} -> ${saldoOrigen - cantidad}, destino(${alias}) ${saldoDestino} -> ${saldoDestino + cantidad}`);
 
         // Actualizar ambos saldos
         await update(ref(db), {
@@ -69,8 +99,18 @@
     }
 
     window.addEventListener("DOMContentLoaded", () => {
+      console.log("DOMContentLoaded - DOM listo");
+      console.log("Poniendo alias actual en el DOM:", username);
       document.getElementById("alias-actual").textContent = username;
-      document.getElementById("transferir-form").addEventListener("submit", transferirCoins);
+
+      const form = document.getElementById("transferir-form");
+      if (form) {
+        form.addEventListener("submit", transferirCoins);
+        console.log("Listener para submit agregado");
+      } else {
+        console.warn("No se encontró el formulario transferir-form");
+      }
+
       cargarCoins();
     });
   </script>
