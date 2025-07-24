@@ -22,6 +22,6 @@ document.getElementById('login-form').addEventListener('submit', async e => {
     }
   } catch (error) {
     console.error(error);
-    document.getElementById("error-msg").textContent = "Error al conectarse con Firebase.";
+    document.getElementById("error-msg").textContent = "Error al conectarse con el servidor, vuelve a intentarlo.";
   }
 });
