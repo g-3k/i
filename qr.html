@@ -2,103 +2,108 @@
 <html lang="es">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Escanear QR para Transferir Coins</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>StefiApp - Escanear QR</title>
+  <script src="https://unpkg.com/html5-qrcode@2.3.10/minified/html5-qrcode.min.js"></script>
+  <script type="module" src="firebase.js"></script>
   <style>
     body {
-      font-family: sans-serif;
-      text-align: center;
-      background: #f5f5f5;
+      font-family: Arial, sans-serif;
       padding: 20px;
+      background-color: #111;
+      color: white;
+      text-align: center;
     }
-    #reader {
+    #qr-reader {
       width: 300px;
       margin: 0 auto;
     }
     #result {
       margin-top: 20px;
-      padding: 10px;
-      background: #fff;
-      border-radius: 6px;
-      box-shadow: 0 0 5px rgba(0,0,0,0.1);
+      font-size: 18px;
     }
-    #stopBtn {
-      margin-top: 10px;
-      display: none;
+    button {
+      padding: 10px 20px;
+      margin-top: 20px;
+      background-color: #0f0;
+      border: none;
+      cursor: pointer;
+      font-size: 16px;
     }
   </style>
-  <!-- ✅ Cargamos la librería correctamente desde UNPKG -->
-  <script src="https://unpkg.com/html5-qrcode@2.3.7/html5-qrcode.min.js"></script>
 </head>
 <body>
   <h1>Escanear QR</h1>
-  <div id="reader"></div>
-  <div id="result">Esperando escaneo...</div>
-  <button id="stopBtn">Detener escaneo</button>
+  <div id="qr-reader"></div>
+  <div id="result"></div>
+  <button id="accept-btn" style="display:none;">Aceptar esta transferencia</button>
 
-  <script>
-    const resultDiv = document.getElementById("result");
-    const stopBtn = document.getElementById("stopBtn");
-    let html5QrCode;
+  <script type="module">
+    import { app, db, ref, get, update } from './scripts/firebase.js';
 
-    function onScanSuccess(decodedText) {
-      try {
-        const data = JSON.parse(decodedText);
-        if (typeof data.from === "string" && typeof data.coins === "number") {
-          resultDiv.innerHTML = `
-            <p><strong>Desde:</strong> ${data.from}</p>
-            <p><strong>Coins:</strong> ${data.coins}</p>
-          `;
-        } else {
-          resultDiv.innerHTML = "Formato incorrecto en el QR.";
-        }
-      } catch (e) {
-        resultDiv.innerHTML = "No se pudo leer el contenido del QR.";
-      }
-
-      stopScanner(); // Detener después de escanear correctamente
-    }
+    let aliasActual = localStorage.getItem('alias') || 'anon';
+    let transferencia = null;
 
     function startScanner() {
-      html5QrCode = new Html5Qrcode("reader");
-
-      Html5Qrcode.getCameras().then(cameras => {
-        if (cameras.length) {
-          const backCam = cameras.find(cam => cam.label.toLowerCase().includes("back")) || cameras[0];
-
-          html5QrCode.start(
-            backCam.id,
-            {
-              fps: 10,
-              qrbox: 250
-            },
-            onScanSuccess,
-            errorMessage => {
-              // Silenciar errores frecuentes de escaneo
-            }
-          ).then(() => {
-            stopBtn.style.display = "inline-block";
-          });
-        } else {
-          resultDiv.innerText = "No se encontró ninguna cámara.";
+      const qrReader = new Html5Qrcode("qr-reader");
+      qrReader.start(
+        { facingMode: "environment" },
+        {
+          fps: 10,
+          qrbox: 250,
+        },
+        async (decodedText) => {
+          try {
+            transferencia = JSON.parse(decodedText);
+            document.getElementById("result").textContent =
+              `Transferencia de ${transferencia.coins} coins de ${transferencia.from}`;
+            document.getElementById("accept-btn").style.display = "inline-block";
+            qrReader.stop(); // Detenemos la cámara después de leer
+          } catch (e) {
+            document.getElementById("result").textContent = "QR inválido.";
+          }
+        },
+        (errorMessage) => {
+          // console.warn(`QR no detectado: ${errorMessage}`);
         }
-      }).catch(err => {
-        resultDiv.innerText = "Error al acceder a la cámara: " + err;
-      });
+      );
     }
 
-    function stopScanner() {
-      html5QrCode.stop().then(() => {
-        stopBtn.style.display = "none";
-        console.log("Escáner detenido");
-      }).catch(err => {
-        console.error("Error al detener escáner:", err);
-      });
-    }
+    document.getElementById("accept-btn").addEventListener("click", async () => {
+      if (!transferencia) return;
 
-    stopBtn.addEventListener("click", stopScanner);
+      const aliasDestino = aliasActual;
+      const aliasOrigen = transferencia.from;
+      const cantidad = parseInt(transferencia.coins);
 
-    window.addEventListener("load", startScanner);
+      const snapshot = await get(ref(db, 'usuarios'));
+      const datos = snapshot.val();
+
+      if (!datos[aliasOrigen]) {
+        alert("El usuario origen no existe.");
+        return;
+      }
+      if (!datos[aliasDestino]) {
+        alert("Tu alias no existe.");
+        return;
+      }
+      if (datos[aliasOrigen].coins < cantidad) {
+        alert("El usuario origen no tiene suficientes coins.");
+        return;
+      }
+
+      // Realizar transferencia
+      const nuevoOrigen = datos[aliasOrigen].coins - cantidad;
+      const nuevoDestino = datos[aliasDestino].coins + cantidad;
+
+      await update(ref(db, 'usuarios/' + aliasOrigen), { coins: nuevoOrigen });
+      await update(ref(db, 'usuarios/' + aliasDestino), { coins: nuevoDestino });
+
+      alert(`¡Recibiste ${cantidad} coins de ${aliasOrigen}!`);
+      location.reload();
+    });
+
+    startScanner();
   </script>
 </body>
 </html>
