@@ -3,155 +3,102 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Escáner QR para Transferir Coins</title>
+  <title>Escanear QR para Transferir Coins</title>
   <style>
     body {
-      font-family: Arial, sans-serif;
-      margin: 0;
-      padding: 0;
-      display: flex;
-      flex-direction: column;
-      min-height: 100vh;
-      justify-content: center;
-      align-items: center;
-      background: #f0f0f0;
-    }
-    h1 {
-      margin-bottom: 0.5rem;
+      font-family: sans-serif;
+      text-align: center;
+      background: #f5f5f5;
+      padding: 20px;
     }
     #reader {
-      width: 320px;
-      max-width: 90vw;
-      border: 2px solid #333;
-      border-radius: 8px;
-      background: white;
+      width: 300px;
+      margin: 0 auto;
     }
     #result {
-      margin-top: 1rem;
-      padding: 1rem;
-      width: 320px;
-      max-width: 90vw;
-      background: white;
-      border-radius: 8px;
-      box-shadow: 0 0 8px rgba(0,0,0,0.15);
-      text-align: center;
-      font-size: 1.1rem;
-      word-break: break-word;
+      margin-top: 20px;
+      padding: 10px;
+      background: #fff;
+      border-radius: 6px;
+      box-shadow: 0 0 5px rgba(0,0,0,0.1);
     }
-    #error {
-      color: red;
-      margin-top: 0.5rem;
-      font-weight: bold;
-    }
-    button#stopBtn {
-      margin-top: 1rem;
-      padding: 0.5rem 1rem;
-      font-size: 1rem;
-      cursor: pointer;
+    #stopBtn {
+      margin-top: 10px;
+      display: none;
     }
   </style>
-  <!-- Librería html5-qrcode desde CDN -->
-  <script src="https://unpkg.com/html5-qrcode@2.3.7/minified/html5-qrcode.min.js"></script>
+  <!-- ✅ Cargamos la librería correctamente desde UNPKG -->
+  <script src="https://unpkg.com/html5-qrcode@2.3.7/html5-qrcode.min.js"></script>
 </head>
 <body>
-  <h1>Escanear QR para Transferir Coins</h1>
-
+  <h1>Escanear QR</h1>
   <div id="reader"></div>
-  <div id="result">Escanea un código QR válido.</div>
-  <div id="error"></div>
-  <button id="stopBtn" style="display:none;">Detener Escaneo</button>
+  <div id="result">Esperando escaneo...</div>
+  <button id="stopBtn">Detener escaneo</button>
 
   <script>
-    const resultDiv = document.getElementById('result');
-    const errorDiv = document.getElementById('error');
-    const stopBtn = document.getElementById('stopBtn');
-
+    const resultDiv = document.getElementById("result");
+    const stopBtn = document.getElementById("stopBtn");
     let html5QrCode;
-    let isScanning = false;
 
-    function onScanSuccess(decodedText, decodedResult) {
-      // Detener escaneo para evitar múltiples lecturas
-      if (isScanning) {
-        isScanning = false;
-        html5QrCode.stop().then(() => {
-          stopBtn.style.display = 'none';
-        }).catch((err) => {
-          console.error("Error al detener escaneo:", err);
-        });
-      }
-
-      errorDiv.textContent = "";
-
+    function onScanSuccess(decodedText) {
       try {
         const data = JSON.parse(decodedText);
-
         if (typeof data.from === "string" && typeof data.coins === "number") {
           resultDiv.innerHTML = `
-            <strong>Datos recibidos:</strong><br>
-            <p>De: <code>${data.from}</code></p>
-            <p>Coins: <code>${data.coins}</code></p>
+            <p><strong>Desde:</strong> ${data.from}</p>
+            <p><strong>Coins:</strong> ${data.coins}</p>
           `;
         } else {
-          throw new Error("Formato incorrecto. Debe contener 'from' (string) y 'coins' (number).");
+          resultDiv.innerHTML = "Formato incorrecto en el QR.";
         }
       } catch (e) {
-        resultDiv.textContent = "QR leído, pero formato inválido.";
-        errorDiv.textContent = e.message;
+        resultDiv.innerHTML = "No se pudo leer el contenido del QR.";
       }
-    }
 
-    function onScanError(errorMessage) {
-      // No mostrar errores muy frecuentes en consola, solo si quieres.
-      // console.warn(`Error de escaneo: ${errorMessage}`);
+      stopScanner(); // Detener después de escanear correctamente
     }
 
     function startScanner() {
       html5QrCode = new Html5Qrcode("reader");
 
-      // Elegir cámara trasera
       Html5Qrcode.getCameras().then(cameras => {
-        if (cameras && cameras.length) {
-          // Buscar cámara trasera (o fallback a la primera)
-          const rearCamera = cameras.find(cam => cam.label.toLowerCase().includes('back')) || cameras[0];
+        if (cameras.length) {
+          const backCam = cameras.find(cam => cam.label.toLowerCase().includes("back")) || cameras[0];
+
           html5QrCode.start(
-            rearCamera.id,
+            backCam.id,
             {
-              fps: 10,    // frames por segundo para escanear
-              qrbox: 250  // tamaño de caja del QR (cuadrado)
+              fps: 10,
+              qrbox: 250
             },
             onScanSuccess,
-            onScanError
+            errorMessage => {
+              // Silenciar errores frecuentes de escaneo
+            }
           ).then(() => {
-            isScanning = true;
             stopBtn.style.display = "inline-block";
-            resultDiv.textContent = "Escaneando... apunta tu cámara al QR";
-          }).catch(err => {
-            errorDiv.textContent = "No se pudo iniciar la cámara: " + err;
           });
         } else {
-          errorDiv.textContent = "No se encontró ninguna cámara disponible.";
+          resultDiv.innerText = "No se encontró ninguna cámara.";
         }
       }).catch(err => {
-        errorDiv.textContent = "Error al acceder a cámaras: " + err;
+        resultDiv.innerText = "Error al acceder a la cámara: " + err;
       });
     }
 
-    stopBtn.addEventListener("click", () => {
-      if (html5QrCode && isScanning) {
-        html5QrCode.stop().then(() => {
-          stopBtn.style.display = "none";
-          isScanning = false;
-          resultDiv.textContent = "Escaneo detenido.";
-        }).catch(err => {
-          errorDiv.textContent = "Error al detener escaneo: " + err;
-        });
-      }
-    });
+    function stopScanner() {
+      html5QrCode.stop().then(() => {
+        stopBtn.style.display = "none";
+        console.log("Escáner detenido");
+      }).catch(err => {
+        console.error("Error al detener escáner:", err);
+      });
+    }
 
-    // Iniciar escaneo al cargar página
-    window.addEventListener("load", () => {
-      startScanner();
-    });
+    stopBtn.addEventListener("click", stopScanner);
+
+    window.addEventListener("load", startScanner);
   </script>
 </body>
 </html>
