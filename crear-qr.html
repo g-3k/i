@@ -1,1 +1,83 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Crear QR para Transferir Coins</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      max-width: 400px;
+      margin: 2rem auto;
+      text-align: center;
+    }
+    input, button {
+      font-size: 1.2rem;
+      padding: 0.5rem;
+      margin: 0.5rem 0;
+      width: 100%;
+      box-sizing: border-box;
+    }
+    #qrcode {
+      margin-top: 1rem;
+    }
+  </style>
+</head>
+<body>
+  <h1>Crear QR para recibir Coins</h1>
+  <p>Tu usuario: <strong id="usuario"></strong></p>
+  <input type="number" id="monto" placeholder="Monto de coins a recibir" min="1" />
+  <button id="btnGenerar">Crear QR</button>
+  <div id="qrcode"></div>
 
+  <script src="https://cdn.jsdelivr.net/npm/qrcode/build/qrcode.min.js"></script>
+  <script>
+    // Obtener usuario desde localStorage
+    const userRaw = localStorage.getItem("user");
+    let username = null;
+    try {
+      username = JSON.parse(userRaw)?.username;
+    } catch(e) {
+      console.error("Error al parsear usuario", e);
+    }
+
+    const usuarioElem = document.getElementById("usuario");
+    usuarioElem.textContent = username ?? "No logueado";
+
+    const montoInput = document.getElementById("monto");
+    const btnGenerar = document.getElementById("btnGenerar");
+    const qrContainer = document.getElementById("qrcode");
+
+    btnGenerar.addEventListener("click", () => {
+      const monto = parseInt(montoInput.value);
+      if (!username) {
+        alert("No estás logueado.");
+        return;
+      }
+      if (isNaN(monto) || monto < 1) {
+        alert("Ingresa un monto válido (mayor a 0).");
+        return;
+      }
+
+      // Crear el objeto JSON
+      const data = {
+        from: username,
+        coins: monto
+      };
+
+      // Limpiar QR anterior
+      qrContainer.innerHTML = "";
+
+      // Generar QR con la librería
+      QRCode.toCanvas(data ? JSON.stringify(data) : "", { width: 256 }, (error, canvas) => {
+        if (error) {
+          console.error(error);
+          alert("Error al generar QR.");
+          return;
+        }
+        qrContainer.appendChild(canvas);
+      });
+    });
+  </script>
+</body>
+</html>
