@@ -11,31 +11,31 @@
     <header class="top-bar">
       <div class="bienvenida">
         <h1>Hola, <span id="username">User</span></h1>
-        <p class="alias-badge">@<span id="alias">alias</span></p>
+        <p class="alias-badge">@<span id="alias" class="rainbow-text">alias</span></p>
         <p><coin><span id="coins">0</span></coin> steficoins</p>
       </div>
       <div class="acciones">
-        <a href="transfer">Transferir</a>
-        <a href="index">Cerrar sesión</a>
+        <aMain><a href="transfer" class="rainbow-text">Transferir</a></aMain>
+        <aMain><a href="index" class="rainbow-text">Cerrar sesión</a></aMain>
       </div>
     </header>
 
-    <main class="contenido">
-      <section class="noticias">
-        <h2>🌟 Novedades</h2>
-        <p>No hay novedades por ahora</p>
-      </section>
+  <main class="contenido">
+    <section class="noticias">
+      <h2 class="rainbow-text">Novedades</h2>
+      <p>No hay novedades por ahora</p>
+    </section>
 
-      <section class="acciones-destacadas">
-        <h2>Acciones</h2>
-        <ul>
-          <li><a href="dashboard.html">Ver tareas</a></li>
-          <li><a href="claim.html">Reclamar puntos</a></li>
-          <li><a href="qr.html">Escanear QR</a></li>
-        </ul>
-      </section>
-    </main>
-  </div>
+    <section class="acciones-destacadas">
+      <h2 class="rainbow-text">Acciones</h2>
+      <ul>
+        <li><aFue><a href="dashboard.html">Ver tareas</a></aFue></li>
+        <li><aFue><a href="claim.html">Reclamar puntos</a></aFue></li>
+        <li><aFue><a href="qr.html">Escanear QR</a></aFue></li>
+      </ul>
+    </section>
+  </main>
+</div>
 
   <script type="module">
     import { db } from './scripts/firebase.js';
