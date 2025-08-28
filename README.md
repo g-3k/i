@@ -1,1 +1,1 @@
-# index
+# moneda virtual de puntaje escolar basado en proyecto original
